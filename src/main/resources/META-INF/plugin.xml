@@ -1,18 +1,29 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>com.github.adrienpessu.sarifviewer</id>
-    <name>SARIF-viewer Template</name>
+    <name>SARIF-viewer</name>
     <vendor>adrienpessu</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.adrienpessu.sarifviewer.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
+        <toolWindow factoryClass="com.github.adrienpessu.sarifviewer.toolWindow.SarifViewerWindowFactory" id="Sarif viewer"/>
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.github.adrienpessu.sarifviewer.configurable.Settings"
+                id="com.example.ApplicationSettingsConfigurable"
+                displayName="SARIF viewer settings"/>
+
+        <applicationService
+                serviceInterface="com.github.adrienpessu.sarifviewer.configurable.SettingsState"
+                serviceImplementation="com.github.adrienpessu.sarifviewer.configurable.SettingsState"/>
     </extensions>
 
+
     <applicationListeners>
-        <listener class="com.github.adrienpessu.sarifviewer.listeners.MyApplicationActivationListener" topic="com.intellij.openapi.application.ApplicationActivationListener"/>
+        <listener class="com.github.adrienpessu.sarifviewer.listeners.SarifViewerActivationListener" topic="com.intellij.openapi.application.ApplicationActivationListener"/>
     </applicationListeners>
 </idea-plugin>
