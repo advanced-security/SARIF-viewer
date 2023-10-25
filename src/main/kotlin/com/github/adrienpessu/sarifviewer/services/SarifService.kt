@@ -13,7 +13,7 @@ import java.net.URL
 
 
 @Service(Service.Level.PROJECT)
-class SarifService(project: Project) {
+class SarifService {
 
     fun loadSarifFile(token: String, repositoryFullName: String, branchName: String): SarifSchema210 {
         val analysisFromGitHub = getAnalysisFromGitHub(token, repositoryFullName, branchName)
