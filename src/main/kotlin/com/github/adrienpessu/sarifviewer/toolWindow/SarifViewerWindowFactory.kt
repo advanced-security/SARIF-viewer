@@ -1,7 +1,9 @@
 package com.github.adrienpessu.sarifviewer.toolWindow
 
+import com.contrastsecurity.sarif.SarifSchema210
 import com.github.adrienpessu.sarifviewer.configurable.Settings
 import com.github.adrienpessu.sarifviewer.configurable.SettingsState
+import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.Icons
@@ -17,12 +19,11 @@ import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.TreeSpeedSearch
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
+import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
-import java.awt.BorderLayout
 import java.awt.Component
-import java.awt.GridLayout
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
@@ -42,7 +43,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val myToolWindow = MyToolWindow(toolWindow)
-        val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), "SARIF Viewer", false)
+        val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), project.name, false)
 
         toolWindow.contentManager.addContent(content)
 
@@ -54,16 +55,25 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         private val service = toolWindow.project.service<SarifService>()
         private val project = toolWindow.project
+        private var main = ScrollPaneFactory.createScrollPane()
+        private val details = JTabbedPane()
+        private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
+        private var sarif: SarifSchema210 = SarifSchema210()
+        private val refreshButton: JButton = JButton("Refresh")
+        private val infos = JTextArea()
+        private val steps = JTextArea()
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
 
             manageTreeIcons()
+            buildSkeleton()
 
             val messageBus = project.messageBus
 
             messageBus.connect().subscribe(Settings.SETTINGS_SAVED_TOPIC, object : Settings.SettingsSavedListener {
                 override fun settingsSaved() {
-                    components.forEach { remove(it) }
+                    clearJSplitPane()
+
                     val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
                     if (repository != null) {
                         loadDataAndUI(repository)
@@ -75,8 +85,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             messageBus.connect().subscribe(GitRepository.GIT_REPO_CHANGE, object : GitRepositoryChangeListener {
                 override fun repositoryChanged(repository: GitRepository) {
-                    components.forEach { remove(it) }
+                    clearJSplitPane()
                     loadDataAndUI(repository)
+                    splitPane.topComponent
                 }
             })
 
@@ -98,17 +109,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             if (repositoryFullName.isNotEmpty() && currentBranch?.name?.isNotEmpty() == true) {
                 try {
-                    val sarif = service.loadSarifFile(token, repositoryFullName, currentBranch.name)
-
-                    if (sarif.runs?.isEmpty() != false) {
-                        add(JLabel("No SARIF file found"))
-                        thisLogger().warn("No SARIF file found")
-                    } else {
-                        val map = service.analyseSarif(sarif)
+                    extractSarif(token, repositoryFullName, currentBranch).let {
                         thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
-                        loadOrRefreshUI(map)
+                        buildContent(it)
                     }
-                } catch (e: Exception) {
+                } catch (e: SarifViewerException) {
                     add(JLabel(e.message))
                     thisLogger().warn(e.message)
                     return
@@ -120,22 +125,50 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             }
         }
 
-        private fun JBPanel<JBPanel<*>>.loadOrRefreshUI(map: HashMap<String, MutableList<Leaf>>) {
+        private fun JBPanel<JBPanel<*>>.extractSarif(
+            token: String,
+            repositoryFullName: String,
+            currentBranch: GitLocalBranch
+        ): HashMap<String, MutableList<Leaf>> {
+            sarif = service.loadSarifFile(token, repositoryFullName, currentBranch.name)
+            var map = HashMap<String, MutableList<Leaf>>()
+            if (sarif.runs?.isEmpty() != false) {
+                add(JLabel("No SARIF file found"))
+                thisLogger().warn("No SARIF file found")
+            } else {
+                map = service.analyseSarif(sarif)
+            }
 
-            val root = DefaultMutableTreeNode(project.name)
+            return map
+        }
 
-            val detail = Box(BoxLayout.Y_AXIS)
-            detail.preferredSize = detail.getMinimumSize()
-            detail.setAlignmentY(Component.BOTTOM_ALIGNMENT);
-            detail.setAlignmentX(Component.LEFT_ALIGNMENT);
-            val jLabel = JTextArea()
-            jLabel.isEditable = false
-            val steps = JTextArea()
+        private fun JBPanel<JBPanel<*>>.buildSkeleton() {
+            infos.isEditable = false
             steps.isEditable = false
 
+            details.addTab("Infos", infos)
+            details.addTab("Steps", steps)
 
-            detail.add(jLabel)
-            detail.add(steps)
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+
+            doLayout()
+
+            val jToolBar = JToolBar("", JToolBar.HORIZONTAL)
+            jToolBar.setSize(100, 10)
+            jToolBar.isFloatable = false
+            jToolBar.isRollover = true
+            jToolBar.alignmentX = Component.LEFT_ALIGNMENT
+            jToolBar.add(refreshButton)
+            add(jToolBar)
+
+            add(splitPane)
+
+            details.isVisible = false
+        }
+        private fun buildContent(
+            map: HashMap<String, MutableList<Leaf>>
+        ) {
+            val root = DefaultMutableTreeNode(project.name)
 
             map.forEach() { (key, value) ->
                 val ruleNode = DefaultMutableTreeNode(key)
@@ -147,38 +180,44 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 root.add(ruleNode)
             }
 
-            layout = GridLayout(2, 1)
+            refreshButton.apply {
+                addActionListener {
+                    clearJSplitPane()
+                    buildContent(map)
+                }
+            }
 
-            doLayout()
 
             val myList = JTree(root)
 
-            myList.showsRootHandles = false
+            myList.isRootVisible = false
             val treeSpeedSearch = TreeSpeedSearch(myList)
-            val main = ScrollPaneFactory.createScrollPane(myList);
+            main = ScrollPaneFactory.createScrollPane(myList);
 
-            add(main)
+            details.isVisible = false
+
+            splitPane.leftComponent = main
+            splitPane.rightComponent = details
 
             treeSpeedSearch.component.addTreeSelectionListener(object : TreeSelectionListener {
                 override fun valueChanged(e: TreeSelectionEvent?) {
-                    println("valueChanged ${e.toString()} ")
                     if (e != null && e.isAddedPath) {
                         val leaves = map[e.path.parentPath.lastPathComponent.toString()]
-                        if (leaves != null) {
-                            val leaf = leaves.first { it.leafName == e.path.lastPathComponent.toString() }
-                            println(leaf.leafName)
-                            jLabel.text = "${leaf.leafName} \n Level: ${leaf.level} \nRule's name: ${leaf.ruleName} \nRule's description ${leaf.ruleDescription} \nLocation ${leaf.location} \nGitHub alert number: ${leaf.githubAlertNumber} \nGitHub alert url ${leaf.githubAlertUrl}\nSteps: \n${leaf.steps.joinToString { "$it \n" }}"
-                            detail.isVisible = true
+                        if (!leaves.isNullOrEmpty()) {
+                            val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
+                            infos.text =
+                                "${leaf.leafName} \n Level: ${leaf.level} \nRule's name: ${leaf.ruleName} \nRule's description ${leaf.ruleDescription} \nLocation ${leaf.location} \nGitHub alert number: ${leaf.githubAlertNumber} \nGitHub alert url ${leaf.githubAlertUrl}\n"
+                            steps.text = leaf.steps.joinToString { "$it \n" }
+                            details.isVisible = true
+                            openFile(project, leaf.location, leaf.address.split(":")[1].toInt())
 
-                            openFile(project, leaf.location, leaf.leafName.split(":")[1].toInt())
+
+                            splitPane.setDividerLocation(0.5)
 
                         }
                     }
                 }
             });
-
-            add(detail, BorderLayout.SOUTH, 1)
-            detail.isVisible = false
         }
 
         private fun manageTreeIcons() {
@@ -198,17 +237,24 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0) {
 
-            VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))?.let { virtualFile ->
-                FileEditorManager.getInstance(project).openTextEditor(
+            VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
+                ?.let { virtualFile ->
+                    FileEditorManager.getInstance(project).openTextEditor(
                         OpenFileDescriptor(
-                                project,
-                                virtualFile,
-                                lineNumber - 1,
-                                columnNumber
+                            project,
+                            virtualFile,
+                            lineNumber - 1,
+                            columnNumber
                         ),
                         true // request focus to editor
-                )
-            }
+                    )
+                }
+        }
+
+        private fun clearJSplitPane() {
+            infos.text = ""
+            steps.text = ""
+            details.isVisible = false
         }
     }
 }

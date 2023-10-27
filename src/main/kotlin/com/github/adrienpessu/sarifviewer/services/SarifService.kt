@@ -35,30 +35,24 @@ class SarifService {
         sarif.runs.forEach { run ->
             run.results.forEach { result ->
                 val properties = result.properties
+                val element = Leaf(
+                        leafName = result.message.text,
+                        address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
+                        steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
+                                ?: listOf(),
+                        location = result.locations[0].physicalLocation.artifactLocation.uri,
+                        ruleId = result.ruleId,
+                        ruleName = result.rule.id,
+                        ruleDescription = result.message.text,
+                        level = result.level.toString(),
+                        kind = result.kind.toString(),
+                        githubAlertNumber = properties.additionalProperties["github/alertNumber"].toString(),
+                        githubAlertUrl = properties.additionalProperties["github/alertUrl"].toString()
+                )
                 if (map.containsKey(result.rule.id)) {
-                    map[result.rule.id]?.add(Leaf(
-                            leafName = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
-                            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
-                                    ?: listOf(),
-                            location = result.locations[0].physicalLocation.artifactLocation.uri,
-                            ruleName = result.ruleId,
-                            ruleDescription = result.message.text,
-                            level = result.level.toString(),
-                            githubAlertNumber = properties.additionalProperties["github/alertNumber"].toString(),
-                            githubAlertUrl = properties.additionalProperties["github/alertUrl"].toString()
-                    ))
+                    map[result.rule.id]?.add(element)
                 } else {
-                    map[result.rule.id] = mutableListOf(Leaf(
-                            leafName = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
-                            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
-                                    ?: listOf(),
-                            location = result.locations[0].physicalLocation.artifactLocation.uri,
-                            ruleName = result.ruleId,
-                            ruleDescription = result.message.text,
-                            level = result.level.toString(),
-                            githubAlertNumber = properties.additionalProperties["github/alertNumber"].toString(),
-                            githubAlertUrl = properties.additionalProperties["github/alertUrl"].toString()
-                    ))
+                    map[result.rule.id] = mutableListOf(element)
                 }
             }
         }
