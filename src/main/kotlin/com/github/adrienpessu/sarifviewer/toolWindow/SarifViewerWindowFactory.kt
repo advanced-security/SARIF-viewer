@@ -24,14 +24,20 @@ import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
 import java.awt.Component
+import java.awt.Desktop
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import java.nio.charset.Charset
 import java.nio.file.Path
 import javax.swing.*
+import javax.swing.event.HyperlinkEvent
+import javax.swing.event.HyperlinkListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
+import javax.swing.text.html.HTMLDocument
+import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 
 
@@ -60,8 +66,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
         private var sarif: SarifSchema210 = SarifSchema210()
         private val refreshButton: JButton = JButton("Refresh")
-        private val infos = JTextArea()
-        private val steps = JTextArea()
+        private val infos = JEditorPane()
+        private val steps = JEditorPane()
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
 
@@ -145,11 +151,22 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
             infos.isEditable = false
             steps.isEditable = false
+            steps.addHyperlinkListener(object : HyperlinkListener {
+                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
+                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType) {
+                        hle?.description.toString().split(":").let { location ->
+                            openFile(project, location[0], location[1].toInt())
+                        }
+                    }
+                }
+            })
 
             details.addTab("Infos", infos)
             details.addTab("Steps", steps)
 
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
+
+
 
             doLayout()
 
@@ -165,6 +182,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             details.isVisible = false
         }
+
         private fun buildContent(
             map: HashMap<String, MutableList<Leaf>>
         ) {
@@ -174,7 +192,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 val ruleNode = DefaultMutableTreeNode(key)
                 value.forEach() { location ->
                     val locationNode = DefaultMutableTreeNode(location)
-
                     ruleNode.add(locationNode)
                 }
                 root.add(ruleNode)
@@ -207,13 +224,20 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
                             infos.text =
                                 "${leaf.leafName} \n Level: ${leaf.level} \nRule's name: ${leaf.ruleName} \nRule's description ${leaf.ruleDescription} \nLocation ${leaf.location} \nGitHub alert number: ${leaf.githubAlertNumber} \nGitHub alert url ${leaf.githubAlertUrl}\n"
-                            steps.text = leaf.steps.joinToString { "$it \n" }
+
+                            steps.read( leaf.steps.joinToString("<br/>") { step ->
+                                "<a href=\"$step\">${step.split("/").last()}</a>"
+                            }.byteInputStream(Charset.defaultCharset()), HTMLEditorKit::class.java)
+
+                            steps.contentType = "text/html"
+
                             details.isVisible = true
                             openFile(project, leaf.location, leaf.address.split(":")[1].toInt())
 
-
                             splitPane.setDividerLocation(0.5)
 
+                        } else {
+                            details.isVisible = false
                         }
                     }
                 }
