@@ -29,6 +29,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import java.net.URI
 import java.nio.charset.Charset
 import java.nio.file.Path
 import javax.swing.*
@@ -36,7 +37,6 @@ import javax.swing.event.HyperlinkEvent
 import javax.swing.event.HyperlinkListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
-import javax.swing.text.html.HTMLDocument
 import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 
@@ -65,6 +65,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private val details = JTabbedPane()
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
         private var sarif: SarifSchema210 = SarifSchema210()
+        private var myList = JTree()
         private val refreshButton: JButton = JButton("Refresh")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
@@ -115,9 +116,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             if (repositoryFullName.isNotEmpty() && currentBranch?.name?.isNotEmpty() == true) {
                 try {
-                    extractSarif(token, repositoryFullName, currentBranch).let {
+                    val map = extractSarif(token, repositoryFullName, currentBranch)
+                    if (map.isEmpty()) {
+                        add(JLabel("No SARIF file found"))
+                        thisLogger().warn("No SARIF file found")
+                    } else {
                         thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
-                        buildContent(it)
+                        buildContent(map, token, repositoryFullName, currentBranch)
                     }
                 } catch (e: SarifViewerException) {
                     add(JLabel(e.message))
@@ -131,25 +136,15 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             }
         }
 
-        private fun JBPanel<JBPanel<*>>.extractSarif(
-            token: String,
-            repositoryFullName: String,
-            currentBranch: GitLocalBranch
-        ): HashMap<String, MutableList<Leaf>> {
-            sarif = service.loadSarifFile(token, repositoryFullName, currentBranch.name)
-            var map = HashMap<String, MutableList<Leaf>>()
-            if (sarif.runs?.isEmpty() != false) {
-                add(JLabel("No SARIF file found"))
-                thisLogger().warn("No SARIF file found")
-            } else {
-                map = service.analyseSarif(sarif)
-            }
-
-            return map
-        }
-
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
             infos.isEditable = false
+            infos.addHyperlinkListener(object : HyperlinkListener {
+                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
+                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType && hle?.description != null) {
+                        Desktop.getDesktop().browse(URI(hle.description))
+                    }
+                }
+            })
             steps.isEditable = false
             steps.addHyperlinkListener(object : HyperlinkListener {
                 override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
@@ -184,7 +179,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun buildContent(
-            map: HashMap<String, MutableList<Leaf>>
+            map: HashMap<String, MutableList<Leaf>>,
+            token: String,
+            repositoryFullName: String,
+            currentBranch: GitLocalBranch
         ) {
             val root = DefaultMutableTreeNode(project.name)
 
@@ -200,12 +198,19 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             refreshButton.apply {
                 addActionListener {
                     clearJSplitPane()
-                    buildContent(map)
+                    val map = extractSarif(token, repositoryFullName, currentBranch)
+                    if (map.isEmpty()) {
+                        add(JLabel("No SARIF file found"))
+                        thisLogger().warn("No SARIF file found")
+                    } else {
+                        thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
+                        buildContent(map, token, repositoryFullName, currentBranch)
+                    }
                 }
             }
 
 
-            val myList = JTree(root)
+            myList = JTree(root)
 
             myList.isRootVisible = false
             val treeSpeedSearch = TreeSpeedSearch(myList)
@@ -222,8 +227,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         val leaves = map[e.path.parentPath.lastPathComponent.toString()]
                         if (!leaves.isNullOrEmpty()) {
                             val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
+
+                            val githubAlertUrl = leaf.githubAlertUrl.replace("api.", "").replace("repos/", "").replace("code-scanning/alerts", "security/code-scanning")
+                            val githubURL = "<a target=\"_BLANK\" href=\"$githubAlertUrl\">$githubAlertUrl</a>"
+
+                            infos.contentType = "text/html"
+
                             infos.text =
-                                "${leaf.leafName} \n Level: ${leaf.level} \nRule's name: ${leaf.ruleName} \nRule's description ${leaf.ruleDescription} \nLocation ${leaf.location} \nGitHub alert number: ${leaf.githubAlertNumber} \nGitHub alert url ${leaf.githubAlertUrl}\n"
+                                "${leaf.leafName} <br/> Level: ${leaf.level} <br/>Rule's name: ${leaf.ruleName} <br/>Rule's description ${leaf.ruleDescription} <br/>Location ${leaf.location} <br/>GitHub alert number: ${leaf.githubAlertNumber} <br/>GitHub alert url ${githubURL}\n"
 
                             steps.read( leaf.steps.joinToString("<br/>") { step ->
                                 "<a href=\"$step\">${step.split("/").last()}</a>"
@@ -276,9 +287,24 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun clearJSplitPane() {
+            myList = JTree()
             infos.text = ""
             steps.text = ""
             details.isVisible = false
+        }
+
+        private fun extractSarif(
+            token: String,
+            repositoryFullName: String,
+            currentBranch: GitLocalBranch
+        ): HashMap<String, MutableList<Leaf>> {
+            sarif = service.loadSarifFile(token, repositoryFullName, currentBranch.name)
+            var map = HashMap<String, MutableList<Leaf>>()
+            if (sarif.runs?.isEmpty() == false) {
+                map = service.analyseSarif(sarif)
+            }
+
+            return map
         }
     }
 }
