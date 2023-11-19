@@ -20,6 +20,8 @@
         <applicationService
                 serviceInterface="com.github.adrienpessu.sarifviewer.configurable.SettingsState"
                 serviceImplementation="com.github.adrienpessu.sarifviewer.configurable.SettingsState"/>
+        <notificationGroup id="SARIF viewer"
+                           displayType="BALLOON"/>
     </extensions>
 
 

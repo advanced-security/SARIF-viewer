@@ -7,6 +7,8 @@ import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.Icons
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -19,6 +21,7 @@ import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.TreeSpeedSearch
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
+import com.intellij.ui.treeStructure.Tree
 import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
@@ -39,6 +42,7 @@ import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.TreeNode
 
 
 class SarifViewerWindowFactory : ToolWindowFactory {
@@ -66,9 +70,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
         private var sarif: SarifSchema210 = SarifSchema210()
         private var myList = JTree()
+        private var selectList = JComboBox(arrayOf("main"))
         private val refreshButton: JButton = JButton("Refresh")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
+        private val errorField = JLabel("Error message here ")
+        private val errorToolbar = JToolBar("", JToolBar.HORIZONTAL)
+        private var sarifGitHubRef = ""
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
 
@@ -83,6 +91,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                     val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
                     if (repository != null) {
+                        val remote = repository.remotes.firstOrNull()
+
                         loadDataAndUI(repository)
                     } else {
                         add(JLabel("No Git repository found"))
@@ -101,27 +111,33 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         }
 
-        private fun JBPanel<JBPanel<*>>.loadDataAndUI(repository: GitRepository) {
+        private fun JBPanel<JBPanel<*>>.loadDataAndUI(repository: GitRepository, refreshCombo: Boolean = true) {
             val currentBranch = repository.currentBranch
             val remote = repository.remotes.firstOrNull()
             val repositoryFullName = remote?.firstUrl?.replace("git@github.com:", "")?.replace(".git", "") ?: ""
 
             val token = SettingsState.instance.pluginState.pat
 
+            if (refreshCombo) {
+                sarifGitHubRef = "refs/heads/${currentBranch?.name ?: "refs/heads/main"}"
+            }
+
             if (token == SettingsState().pluginState.pat || token.isEmpty()) {
-                add(JLabel("No GitHub PAT found"))
-                thisLogger().warn("No GitHub PAT found")
+                displayError("No GitHub PAT found")
                 return
             }
 
             if (repositoryFullName.isNotEmpty() && currentBranch?.name?.isNotEmpty() == true) {
                 try {
-                    val map = extractSarif(token, repositoryFullName, currentBranch)
+                    if (refreshCombo) {
+                        populateCombo(currentBranch, token, repositoryFullName)
+                    }
+
+                    val map = extractSarif(token, repositoryFullName)
                     if (map.isEmpty()) {
-                        add(JLabel("No SARIF file found"))
-                        thisLogger().warn("No SARIF file found")
+                        displayError("No SARIF file found for the repository $repositoryFullName and ref ${sarifGitHubRef}")
                     } else {
-                        thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
+                        thisLogger().info("Load result for the repository $repositoryFullName and ref ${sarifGitHubRef}")
                         buildContent(map, token, repositoryFullName, currentBranch)
                     }
                 } catch (e: SarifViewerException) {
@@ -132,8 +148,21 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
 
             } else {
-                add(JLabel("No remote found"))
+                displayError("No remote found")
             }
+        }
+
+        private fun displayError(message: String) {
+            clearJSplitPane()
+            errorToolbar.isVisible = true
+            errorField.text = message
+
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("SARIF viewer")
+                .createNotification(message, NotificationType.ERROR)
+                .notify(project);
+
+            thisLogger().info(message)
         }
 
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
@@ -161,9 +190,16 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
 
-
-
             doLayout()
+
+
+            errorToolbar.setSize(100, 10)
+            errorToolbar.isFloatable = false
+            errorToolbar.isRollover = true
+            errorToolbar.alignmentX = Component.LEFT_ALIGNMENT
+            errorToolbar.add(errorField)
+            errorToolbar.isVisible = false
+            add(errorToolbar)
 
             val jToolBar = JToolBar("", JToolBar.HORIZONTAL)
             jToolBar.setSize(100, 10)
@@ -171,6 +207,29 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             jToolBar.isRollover = true
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
             jToolBar.add(refreshButton)
+
+            jToolBar.add(selectList)
+            selectList.addActionListener { event ->
+                val comboBox = event.source as JComboBox<*>
+                if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
+                    val selectedOption = comboBox.selectedItem
+                    println("Selected option: $selectedOption")
+                    sarifGitHubRef = if (selectedOption.toString().startsWith("pr")) {
+                        "refs/pull/${selectedOption.toString().split(" ")[0].removePrefix("pr")}/merge"
+                    } else {
+                        "refs/heads/${selectedOption.toString()}"
+                    }
+
+                    clearJSplitPane()
+                    val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
+                    if (repository != null) {
+                        loadDataAndUI(repository, false)
+                    } else {
+                        add(JLabel("No Git repository found"))
+                    }
+                }
+            }
+
             add(jToolBar)
 
             add(splitPane)
@@ -198,10 +257,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             refreshButton.apply {
                 addActionListener {
                     clearJSplitPane()
-                    val map = extractSarif(token, repositoryFullName, currentBranch)
+                    populateCombo(currentBranch, token, repositoryFullName)
+                    val map = extractSarif(token, repositoryFullName)
                     if (map.isEmpty()) {
-                        add(JLabel("No SARIF file found"))
-                        thisLogger().warn("No SARIF file found")
+                        displayError("No SARIF file found")
                     } else {
                         thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
                         buildContent(map, token, repositoryFullName, currentBranch)
@@ -228,7 +287,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         if (!leaves.isNullOrEmpty()) {
                             val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
 
-                            val githubAlertUrl = leaf.githubAlertUrl.replace("api.", "").replace("repos/", "").replace("code-scanning/alerts", "security/code-scanning")
+                            val githubAlertUrl = leaf.githubAlertUrl.replace("api.", "").replace("repos/", "")
+                                .replace("code-scanning/alerts", "security/code-scanning")
                             val githubURL = "<a target=\"_BLANK\" href=\"$githubAlertUrl\">$githubAlertUrl</a>"
 
                             infos.contentType = "text/html"
@@ -236,7 +296,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             infos.text =
                                 "${leaf.leafName} <br/> Level: ${leaf.level} <br/>Rule's name: ${leaf.ruleName} <br/>Rule's description ${leaf.ruleDescription} <br/>Location ${leaf.location} <br/>GitHub alert number: ${leaf.githubAlertNumber} <br/>GitHub alert url ${githubURL}\n"
 
-                            steps.read( leaf.steps.joinToString("<br/>") { step ->
+                            steps.read(leaf.steps.joinToString("<br/>") { step ->
                                 "<a href=\"$step\">${step.split("/").last()}</a>"
                             }.byteInputStream(Charset.defaultCharset()), HTMLEditorKit::class.java)
 
@@ -288,23 +348,40 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         private fun clearJSplitPane() {
             myList = JTree()
+            myList.updateUI()
             infos.text = ""
             steps.text = ""
             details.isVisible = false
+            errorToolbar.isVisible = false
         }
 
         private fun extractSarif(
             token: String,
-            repositoryFullName: String,
-            currentBranch: GitLocalBranch
+            repositoryFullName: String
         ): HashMap<String, MutableList<Leaf>> {
-            sarif = service.loadSarifFile(token, repositoryFullName, currentBranch.name)
+            sarif = service.loadSarifFile(token, repositoryFullName, sarifGitHubRef)
             var map = HashMap<String, MutableList<Leaf>>()
             if (sarif.runs?.isEmpty() == false) {
                 map = service.analyseSarif(sarif)
             }
 
             return map
+        }
+
+        private fun populateCombo(
+            currentBranch: GitLocalBranch?,
+            token: String,
+            repositoryFullName: String
+        ) {
+            selectList.removeAllItems()
+            selectList.addItem(currentBranch?.name ?: "main")
+            val pullRequests = service.getPullRequests(token, repositoryFullName, sarifGitHubRef.split("/").last())
+            if (pullRequests.isNotEmpty()) {
+                pullRequests.forEach {
+                    val currentPr = it as LinkedHashMap<*, *>
+                    selectList.addItem("pr${currentPr["number"]} (${currentPr["title"]})")
+                }
+            }
         }
     }
 }

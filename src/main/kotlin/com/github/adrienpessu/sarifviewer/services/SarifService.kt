@@ -2,12 +2,14 @@ package com.github.adrienpessu.sarifviewer.services
 
 import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.jr.ob.JSON
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
+import net.minidev.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -59,9 +61,33 @@ class SarifService {
         return map
     }
 
+    fun getPullRequests(token: String, repositoryFullName: String, branchName: String = "main"): JSONArray {
+        val head = "${repositoryFullName.split("/")[0]}:$branchName"
+        val connection = URL("https://api.github.com/repos/$repositoryFullName/pulls?state=open&ref=$head")
+            .openConnection() as HttpURLConnection
+
+        connection.apply {
+            requestMethod = "GET"
+            doInput = true
+            doOutput = true
+
+            setRequestProperty("Accept", "application/vnd.github.v3+json")
+            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            setRequestProperty("Authorization", "Bearer $token")
+        }
+
+        handleExceptions(connection)
+
+        val response = connection.inputStream.bufferedReader().readText()
+
+        connection.disconnect()
+
+        return ObjectMapper().readValue(response)
+    }
+
     private fun getAnalysisFromGitHub(token: String, repositoryFullName: String, branchName: String = "main"): String {
 
-        val connection = URL("https://api.github.com/repos/$repositoryFullName/code-scanning/analyses?ref=refs/heads/$branchName")
+        val connection = URL("https://api.github.com/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName")
                 .openConnection() as HttpURLConnection
 
         connection.apply {
