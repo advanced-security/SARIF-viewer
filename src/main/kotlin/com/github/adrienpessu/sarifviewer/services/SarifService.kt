@@ -63,7 +63,7 @@ class SarifService {
 
     fun getPullRequests(token: String, repositoryFullName: String, branchName: String = "main"): JSONArray {
         val head = "${repositoryFullName.split("/")[0]}:$branchName"
-        val connection = URL("https://api.github.com/repos/$repositoryFullName/pulls?state=open&ref=$head")
+        val connection = URL("https://api.github.com/repos/$repositoryFullName/pulls?state=open&head=$head")
             .openConnection() as HttpURLConnection
 
         connection.apply {

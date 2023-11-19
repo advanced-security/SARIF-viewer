@@ -254,20 +254,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 root.add(ruleNode)
             }
 
-            refreshButton.apply {
-                addActionListener {
-                    clearJSplitPane()
-                    populateCombo(currentBranch, token, repositoryFullName)
-                    val map = extractSarif(token, repositoryFullName)
-                    if (map.isEmpty()) {
-                        displayError("No SARIF file found")
-                    } else {
-                        thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
-                        buildContent(map, token, repositoryFullName, currentBranch)
-                    }
+            refreshButton.addActionListener {
+                clearJSplitPane()
+                populateCombo(currentBranch, token, repositoryFullName)
+                val map = extractSarif(token, repositoryFullName)
+                if (map.isEmpty()) {
+                    displayError("No SARIF file found")
+                } else {
+                    thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
+                    buildContent(map, token, repositoryFullName, currentBranch)
                 }
             }
-
 
             myList = JTree(root)
 
