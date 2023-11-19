@@ -42,6 +42,7 @@ import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreeNode
 
 
@@ -344,7 +345,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun clearJSplitPane() {
-            myList = JTree()
+            myList.model = DefaultTreeModel(DefaultMutableTreeNode())
             myList.updateUI()
             infos.text = ""
             steps.text = ""
