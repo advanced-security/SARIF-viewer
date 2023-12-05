@@ -2,13 +2,11 @@ package com.github.adrienpessu.sarifviewer.services
 
 import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.jr.ob.JSON
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.project.Project
 import net.minidev.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
@@ -32,7 +30,7 @@ class SarifService {
     }
 
     fun analyseSarif(sarif: SarifSchema210): HashMap<String, MutableList<Leaf>> {
-        val map = HashMap<String, MutableList<Leaf>>();
+        val map = HashMap<String, MutableList<Leaf>>()
 
         sarif.runs.forEach { run ->
             run.results.forEach { result ->
