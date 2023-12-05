@@ -18,10 +18,8 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ScrollPaneFactory
-import com.intellij.ui.TreeSpeedSearch
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
-import com.intellij.ui.treeStructure.Tree
 import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
@@ -34,6 +32,7 @@ import java.io.FileReader
 import java.io.FileWriter
 import java.net.URI
 import java.nio.charset.Charset
+import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.*
 import javax.swing.event.HyperlinkEvent
@@ -270,7 +269,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             myList = JTree(root)
 
             myList.isRootVisible = false
-            val treeSpeedSearch = TreeSpeedSearch(myList)
             main = ScrollPaneFactory.createScrollPane(myList);
 
             details.isVisible = false
@@ -278,7 +276,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             splitPane.leftComponent = main
             splitPane.rightComponent = details
 
-            treeSpeedSearch.component.addTreeSelectionListener(object : TreeSelectionListener {
+            myList.addTreeSelectionListener(object : TreeSelectionListener {
                 override fun valueChanged(e: TreeSelectionEvent?) {
                     if (e != null && e.isAddedPath) {
                         val leaves = map[e.path.parentPath.lastPathComponent.toString()]
@@ -314,7 +312,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun manageTreeIcons() {
-            val tmpFile: File = File.createTempFile("warning", ".svg")
+            val tmpPath: Path? = Files.createTempFile("warning", ".svg");
+            val tmpFile = File(tmpPath!!.toUri())
             val writer = FileWriter(tmpFile)
             writer.write(Icons.ICON_WARNING)
             writer.close()
