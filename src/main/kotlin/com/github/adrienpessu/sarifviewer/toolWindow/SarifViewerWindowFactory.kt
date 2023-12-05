@@ -42,7 +42,6 @@ import javax.swing.event.TreeSelectionListener
 import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
-import javax.swing.tree.TreeNode
 
 
 class SarifViewerWindowFactory : ToolWindowFactory {
@@ -160,7 +159,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             NotificationGroupManager.getInstance()
                 .getNotificationGroup("SARIF viewer")
                 .createNotification(message, NotificationType.ERROR)
-                .notify(project);
+                .notify(project)
 
             thisLogger().info(message)
         }
@@ -269,7 +268,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             myList = JTree(root)
 
             myList.isRootVisible = false
-            main = ScrollPaneFactory.createScrollPane(myList);
+            main = ScrollPaneFactory.createScrollPane(myList)
 
             details.isVisible = false
 
@@ -308,11 +307,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         }
                     }
                 }
-            });
+            })
         }
 
         private fun manageTreeIcons() {
-            val tmpPath: Path? = Files.createTempFile("warning", ".svg");
+            val tmpPath: Path? = Files.createTempFile("warning", ".svg")
             val tmpFile = File(tmpPath!!.toUri())
             val writer = FileWriter(tmpFile)
             writer.write(Icons.ICON_WARNING)
