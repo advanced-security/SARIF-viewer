@@ -205,7 +205,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
             jToolBar.add(refreshButton)
 
-            jToolBar.add(selectList)
             selectList.addActionListener { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
@@ -226,6 +225,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     }
                 }
             }
+
+            jToolBar.add(selectList)
 
             add(jToolBar)
 
