@@ -26,6 +26,7 @@ import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
 import java.awt.Component
 import java.awt.Desktop
+import java.awt.event.ActionListener
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
@@ -205,7 +206,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
             jToolBar.add(refreshButton)
 
-            selectList.addActionListener { event ->
+            selectList.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
                     val selectedOption = comboBox.selectedItem
@@ -224,7 +225,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         add(JLabel("No Git repository found"))
                     }
                 }
-            }
+            })
 
             jToolBar.add(selectList)
 
@@ -252,7 +253,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 root.add(ruleNode)
             }
 
-            refreshButton.addActionListener {
+            refreshButton.addActionListener(ActionListener(){
                 clearJSplitPane()
                 populateCombo(currentBranch, token, repositoryFullName)
                 val mapSarif = extractSarif(token, repositoryFullName)
@@ -262,7 +263,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
                     buildContent(mapSarif, token, repositoryFullName, currentBranch)
                 }
-            }
+            })
 
             myList = JTree(root)
 
