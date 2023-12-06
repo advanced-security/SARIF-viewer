@@ -90,8 +90,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                     val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
                     if (repository != null) {
-                        val remote = repository.remotes.firstOrNull()
-
                         loadDataAndUI(repository)
                     } else {
                         add(JLabel("No Git repository found"))
@@ -159,7 +157,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             NotificationGroupManager.getInstance()
                 .getNotificationGroup("SARIF viewer")
                 .createNotification(message, NotificationType.ERROR)
-                .notify(project)
+                .notify(project);
 
             thisLogger().info(message)
         }
@@ -256,19 +254,19 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             refreshButton.addActionListener {
                 clearJSplitPane()
                 populateCombo(currentBranch, token, repositoryFullName)
-                val map = extractSarif(token, repositoryFullName)
-                if (map.isEmpty()) {
+                val mapSarif = extractSarif(token, repositoryFullName)
+                if (mapSarif.isEmpty()) {
                     displayError("No SARIF file found")
                 } else {
                     thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
-                    buildContent(map, token, repositoryFullName, currentBranch)
+                    buildContent(mapSarif, token, repositoryFullName, currentBranch)
                 }
             }
 
             myList = JTree(root)
 
             myList.isRootVisible = false
-            main = ScrollPaneFactory.createScrollPane(myList)
+            main = ScrollPaneFactory.createScrollPane(myList);
 
             details.isVisible = false
 
@@ -307,11 +305,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         }
                     }
                 }
-            })
+            });
         }
 
         private fun manageTreeIcons() {
-            val tmpPath: Path? = Files.createTempFile("warning", ".svg")
+            val tmpPath: Path? = Files.createTempFile("warning", ".svg");
             val tmpFile = File(tmpPath!!.toUri())
             val writer = FileWriter(tmpFile)
             writer.write(Icons.ICON_WARNING)
