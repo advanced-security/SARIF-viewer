@@ -7,7 +7,7 @@ import com.intellij.util.messages.Topic
 import javax.swing.JComponent
 
 
-class Settings: Configurable, Configurable.NoScroll, Disposable {
+class Settings : Configurable, Configurable.NoScroll, Disposable {
     private var mySettingsComponent: SettingComponent? = null
 
     interface SettingsSavedListener {
@@ -25,15 +25,23 @@ class Settings: Configurable, Configurable.NoScroll, Disposable {
     override fun createComponent(): JComponent {
         mySettingsComponent = SettingComponent()
         mySettingsComponent!!.setGhTokenText(SettingsState.instance.state.pat)
+        mySettingsComponent!!.setGhesHostnameText(SettingsState.instance.state.ghesHostname)
+        mySettingsComponent!!.setGhesTokenText(SettingsState.instance.state.ghesPat)
         return mySettingsComponent!!.getPanel()
     }
 
     override fun isModified(): Boolean =
-            !mySettingsComponent!!.getGhTokenText().equals(SettingsState.instance.state.pat)
+            listOf(
+                    !mySettingsComponent!!.getGhTokenText().equals(SettingsState.instance.state.pat),
+                    !mySettingsComponent!!.getGhesHostnameText().equals(SettingsState.instance.state.ghesHostname),
+                    !mySettingsComponent!!.getGhesTokenText().equals(SettingsState.instance.state.ghesPat),
+            ).any()
 
     override fun apply() {
         val settings: SettingsState = SettingsState.instance
         settings.state.pat = mySettingsComponent!!.getGhTokenText()
+        settings.state.ghesHostname = mySettingsComponent!!.getGhesHostnameText()
+        settings.state.ghesPat = mySettingsComponent!!.getGhesTokenText()
 
         ApplicationManager.getApplication().messageBus.syncPublisher(SETTINGS_SAVED_TOPIC).settingsSaved()
 
@@ -41,6 +49,8 @@ class Settings: Configurable, Configurable.NoScroll, Disposable {
 
     override fun reset() {
         mySettingsComponent?.setGhTokenText(SettingsState.instance.state.pat)
+        mySettingsComponent?.setGhesHostnameText(SettingsState.instance.state.ghesHostname)
+        mySettingsComponent?.setGhesTokenText(SettingsState.instance.state.ghesPat)
     }
 
     override fun disposeUIResources() {

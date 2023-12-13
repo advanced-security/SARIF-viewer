@@ -32,6 +32,8 @@ open class SettingsState : PersistentStateComponent<SettingsState.PluginState> {
     // the POKO class that always keeps our state
     class PluginState {
         var pat = "Insert your GitHub PAT here"
+        var ghesHostname = "Insert your GitHub Enterprise Server hostname here"
+        var ghesPat = "Insert your GitHub Enterprise Server PAT here"
     }
 
 }

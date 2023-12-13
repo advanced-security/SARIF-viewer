@@ -6,6 +6,7 @@ import com.github.adrienpessu.sarifviewer.configurable.SettingsState
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.services.SarifService
+import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.github.adrienpessu.sarifviewer.utils.Icons
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -105,38 +106,55 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     splitPane.topComponent
                 }
             })
-
-
         }
 
         private fun JBPanel<JBPanel<*>>.loadDataAndUI(repository: GitRepository, refreshCombo: Boolean = true) {
             val currentBranch = repository.currentBranch
-            val remote = repository.remotes.firstOrNull()
-            val repositoryFullName = remote?.firstUrl?.replace("git@github.com:", "")?.replace(".git", "") ?: ""
 
-            val token = SettingsState.instance.pluginState.pat
+            val remote = repository.remotes.firstOrNull {
+                GitHubInstance.extractHostname(it.firstUrl) in
+                        setOf(GitHubInstance.DOT_COM.hostname, SettingsState.instance.pluginState.ghesHostname)
+            }
+
+            val github: GitHubInstance? = GitHubInstance.fromRemoteUrl(remote?.firstUrl.orEmpty())
+            if (github == null) {
+                displayError("Could not find a configured GitHub instance that matches $remote")
+                return
+            }
+
+            if (github == GitHubInstance.DOT_COM) {
+                github.token = SettingsState.instance.pluginState.pat
+            } else if (github.hostname == SettingsState.instance.pluginState.ghesHostname) {
+                github.token = SettingsState.instance.pluginState.ghesPat
+            }
+
+            val repositoryFullName = github.extractRepoNwo(remote?.firstUrl)
+            if (repositoryFullName == null) {
+                displayError("Could not determine repository owner and name from remote URL: $remote")
+                return
+            }
 
             if (refreshCombo) {
                 sarifGitHubRef = "refs/heads/${currentBranch?.name ?: "refs/heads/main"}"
             }
 
-            if (token == SettingsState().pluginState.pat || token.isEmpty()) {
-                displayError("No GitHub PAT found")
+            if (github.token == SettingsState().pluginState.pat || github.token.isEmpty()) {
+                displayError("No GitHub PAT found for ${github.hostname}")
                 return
             }
 
             if (repositoryFullName.isNotEmpty() && currentBranch?.name?.isNotEmpty() == true) {
                 try {
                     if (refreshCombo) {
-                        populateCombo(currentBranch, token, repositoryFullName)
+                        populateCombo(currentBranch, github, repositoryFullName)
                     }
 
-                    val map = extractSarif(token, repositoryFullName)
+                    val map = extractSarif(github, repositoryFullName)
                     if (map.isEmpty()) {
                         displayError("No SARIF file found for the repository $repositoryFullName and ref ${sarifGitHubRef}")
                     } else {
                         thisLogger().info("Load result for the repository $repositoryFullName and ref ${sarifGitHubRef}")
-                        buildContent(map, token, repositoryFullName, currentBranch)
+                        buildContent(map, github, repositoryFullName, currentBranch)
                     }
                 } catch (e: SarifViewerException) {
                     add(JLabel(e.message))
@@ -156,9 +174,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             errorField.text = message
 
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("SARIF viewer")
-                .createNotification(message, NotificationType.ERROR)
-                .notify(project);
+                    .getNotificationGroup("SARIF viewer")
+                    .createNotification(message, NotificationType.ERROR)
+                    .notify(project);
 
             thisLogger().info(message)
         }
@@ -237,10 +255,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun buildContent(
-            map: HashMap<String, MutableList<Leaf>>,
-            token: String,
-            repositoryFullName: String,
-            currentBranch: GitLocalBranch
+                map: HashMap<String, MutableList<Leaf>>,
+                github: GitHubInstance,
+                repositoryFullName: String,
+                currentBranch: GitLocalBranch
         ) {
             val root = DefaultMutableTreeNode(project.name)
 
@@ -253,15 +271,15 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 root.add(ruleNode)
             }
 
-            refreshButton.addActionListener(ActionListener(){
+            refreshButton.addActionListener(ActionListener() {
                 clearJSplitPane()
-                populateCombo(currentBranch, token, repositoryFullName)
-                val mapSarif = extractSarif(token, repositoryFullName)
+                populateCombo(currentBranch, github, repositoryFullName)
+                val mapSarif = extractSarif(github, repositoryFullName)
                 if (mapSarif.isEmpty()) {
                     displayError("No SARIF file found")
                 } else {
                     thisLogger().info("Load result for the repository $repositoryFullName and branch ${currentBranch.name}")
-                    buildContent(mapSarif, token, repositoryFullName, currentBranch)
+                    buildContent(mapSarif, github, repositoryFullName, currentBranch)
                 }
             })
 
@@ -282,14 +300,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         if (!leaves.isNullOrEmpty()) {
                             val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
 
-                            val githubAlertUrl = leaf.githubAlertUrl.replace("api.", "").replace("repos/", "")
-                                .replace("code-scanning/alerts", "security/code-scanning")
+                            val githubAlertUrl = leaf.githubAlertUrl
+                                    .replace("api.", "")
+                                    .replace("api/v3/", "")
+                                    .replace("repos/", "")
+                                    .replace("code-scanning/alerts", "security/code-scanning")
                             val githubURL = "<a target=\"_BLANK\" href=\"$githubAlertUrl\">$githubAlertUrl</a>"
 
                             infos.contentType = "text/html"
 
                             infos.text =
-                                "${leaf.leafName} <br/> Level: ${leaf.level} <br/>Rule's name: ${leaf.ruleName} <br/>Rule's description ${leaf.ruleDescription} <br/>Location ${leaf.location} <br/>GitHub alert number: ${leaf.githubAlertNumber} <br/>GitHub alert url ${githubURL}\n"
+                                    "${leaf.leafName} <br/> Level: ${leaf.level} <br/>Rule's name: ${leaf.ruleName} <br/>Rule's description ${leaf.ruleDescription} <br/>Location ${leaf.location} <br/>GitHub alert number: ${leaf.githubAlertNumber} <br/>GitHub alert url ${githubURL}\n"
 
                             steps.read(leaf.steps.joinToString("<br/>") { step ->
                                 "<a href=\"$step\">${step.split("/").last()}</a>"
@@ -329,17 +350,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0) {
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
-                ?.let { virtualFile ->
-                    FileEditorManager.getInstance(project).openTextEditor(
-                        OpenFileDescriptor(
-                            project,
-                            virtualFile,
-                            lineNumber - 1,
-                            columnNumber
-                        ),
-                        true // request focus to editor
-                    )
-                }
+                    ?.let { virtualFile ->
+                        FileEditorManager.getInstance(project).openTextEditor(
+                                OpenFileDescriptor(
+                                        project,
+                                        virtualFile,
+                                        lineNumber - 1,
+                                        columnNumber
+                                ),
+                                true // request focus to editor
+                        )
+                    }
         }
 
         private fun clearJSplitPane() {
@@ -352,10 +373,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun extractSarif(
-            token: String,
-            repositoryFullName: String
+                github: GitHubInstance,
+                repositoryFullName: String
         ): HashMap<String, MutableList<Leaf>> {
-            sarif = service.loadSarifFile(token, repositoryFullName, sarifGitHubRef)
+            sarif = service.loadSarifFile(github, repositoryFullName, sarifGitHubRef)
             var map = HashMap<String, MutableList<Leaf>>()
             if (sarif.runs?.isEmpty() == false) {
                 map = service.analyseSarif(sarif)
@@ -365,13 +386,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun populateCombo(
-            currentBranch: GitLocalBranch?,
-            token: String,
-            repositoryFullName: String
+                currentBranch: GitLocalBranch?,
+                github: GitHubInstance,
+                repositoryFullName: String
         ) {
             selectList.removeAllItems()
             selectList.addItem(currentBranch?.name ?: "main")
-            val pullRequests = service.getPullRequests(token, repositoryFullName, sarifGitHubRef.split("/").last())
+            val pullRequests = service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests.isNotEmpty()) {
                 pullRequests.forEach {
                     val currentPr = it as LinkedHashMap<*, *>
