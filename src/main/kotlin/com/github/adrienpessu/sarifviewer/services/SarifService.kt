@@ -34,7 +34,7 @@ class SarifService {
         val map = HashMap<String, MutableList<Leaf>>()
 
         sarif.runs.forEach { run ->
-            run.results.forEach { result ->
+            run?.results?.forEach { result ->
                 val properties = result.properties
                 val element = Leaf(
                         leafName = result.message.text,
@@ -86,7 +86,9 @@ class SarifService {
 
     private fun getAnalysisFromGitHub(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): String {
 
-        val connection = URL("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName")
+        val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
+        println(s)
+        val connection = URL(s)
                 .openConnection() as HttpURLConnection
 
         connection.apply {
