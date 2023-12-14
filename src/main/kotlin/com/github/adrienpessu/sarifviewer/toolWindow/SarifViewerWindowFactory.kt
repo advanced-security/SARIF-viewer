@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.adrienpessu.sarifviewer.configurable.Settings
 import com.github.adrienpessu.sarifviewer.configurable.SettingsState
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
+import com.github.adrienpessu.sarifviewer.models.BranchItemComboBox
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
@@ -73,7 +74,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
         private var sarif: SarifSchema210 = SarifSchema210()
         private var myList = JTree()
-        private var selectList = ComboBox(arrayOf("main"))
+        private var selectList = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
         private val refreshButton: JButton = JButton("Refresh from GH")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
@@ -233,11 +234,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             selectList.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
-                    val selectedOption = comboBox.selectedItem
-                    sarifGitHubRef = if (selectedOption?.toString()?.startsWith("pr") == true) {
-                        "refs/pull/${selectedOption.toString().split(" ")[0].removePrefix("pr")}/merge"
+                    val selectedOption = comboBox.selectedItem as BranchItemComboBox
+                    sarifGitHubRef = if (selectedOption.prNumber != 0) {
+                        "refs/pull/${selectedOption.prNumber}/merge"
                     } else {
-                        "refs/heads/$selectedOption"
+                        "refs/heads/${selectedOption.head}"
                     }
 
                     clearJSplitPane()
@@ -425,13 +426,20 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             repositoryFullName: String
         ) {
             selectList.removeAllItems()
-            selectList.addItem(currentBranch?.name ?: "main")
+            selectList.addItem(BranchItemComboBox(0, currentBranch?.name ?: "main", "", ""))
             val pullRequests =
                 service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests.isNotEmpty()) {
                 pullRequests.forEach {
                     val currentPr = it as LinkedHashMap<*, *>
-                    selectList.addItem("pr${currentPr["number"]} (${currentPr["title"]})")
+                    selectList.addItem(
+                        BranchItemComboBox(
+                            currentPr["number"] as Int,
+                            (currentPr["base"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                            (currentPr["head"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                            currentPr["title"].toString()
+                        )
+                    )
                 }
             }
         }
