@@ -96,7 +96,6 @@ class SarifService {
     ): String {
 
         val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
-        println(s)
         val connection = URL(s)
             .openConnection() as HttpURLConnection
 

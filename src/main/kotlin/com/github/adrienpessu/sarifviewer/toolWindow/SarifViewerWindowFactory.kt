@@ -64,6 +64,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
     class MyToolWindow(toolWindow: ToolWindow) {
 
+        private var localMode = false
         private val service = toolWindow.project.service<SarifService>()
         private val project = toolWindow.project
         private var main = ScrollPaneFactory.createScrollPane()
@@ -72,7 +73,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var sarif: SarifSchema210 = SarifSchema210()
         private var myList = JTree()
         private var selectList = JComboBox(arrayOf("main"))
-        private val refreshButton: JButton = JButton("Refresh")
+        private val refreshButton: JButton = JButton("Refresh from GH")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
         private val errorField = JLabel("Error message here ")
@@ -88,22 +89,26 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             messageBus.connect().subscribe(Settings.SETTINGS_SAVED_TOPIC, object : Settings.SettingsSavedListener {
                 override fun settingsSaved() {
-                    clearJSplitPane()
+                    if (!localMode) {
+                        clearJSplitPane()
 
-                    val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
-                    if (repository != null) {
-                        loadDataAndUI(repository)
-                    } else {
-                        add(JLabel("No Git repository found"))
+                        val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
+                        if (repository != null) {
+                            loadDataAndUI(repository)
+                        } else {
+                            add(JLabel("No Git repository found"))
+                        }
                     }
                 }
             })
 
             messageBus.connect().subscribe(GitRepository.GIT_REPO_CHANGE, object : GitRepositoryChangeListener {
                 override fun repositoryChanged(repository: GitRepository) {
-                    clearJSplitPane()
-                    loadDataAndUI(repository)
-                    splitPane.topComponent
+                    if (!localMode) {
+                        clearJSplitPane()
+                        loadDataAndUI(repository)
+                        splitPane.topComponent
+                    }
                 }
             })
         }
@@ -174,9 +179,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             errorField.text = message
 
             NotificationGroupManager.getInstance()
-                    .getNotificationGroup("SARIF viewer")
-                    .createNotification(message, NotificationType.ERROR)
-                    .notify(project)
+                .getNotificationGroup("SARIF viewer")
+                .createNotification(message, NotificationType.ERROR)
+                .notify(project)
 
             thisLogger().info(message)
         }
@@ -228,7 +233,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
                     val selectedOption = comboBox.selectedItem
-                    println("Selected option: $selectedOption")
                     sarifGitHubRef = if (selectedOption.toString().startsWith("pr")) {
                         "refs/pull/${selectedOption.toString().split(" ")[0].removePrefix("pr")}/merge"
                     } else {
@@ -247,9 +251,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             jToolBar.add(selectList)
 
-            val button = JButton("📂")
-            button.setSize(10, 10)
-            button.addActionListener(object : ActionListener {
+            val localFileButton = JButton("📂")
+            localFileButton.setSize(10, 10)
+            localFileButton.addActionListener(object : ActionListener {
                 override fun actionPerformed(e: ActionEvent?) {
                     val fileChooser = JFileChooser()
                     fileChooser.fileFilter = FileNameExtensionFilter("SARIF files", "sarif")
@@ -258,10 +262,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         val selectedFile: File = fileChooser.selectedFile
                         val extractSarifFromFile = extractSarifFromFile(selectedFile)
                         treeBuilding(extractSarifFromFile)
+                        localMode = true
                     }
                 }
             })
-            jToolBar.add(button)
+            jToolBar.add(localFileButton)
 
             add(jToolBar)
 
@@ -271,13 +276,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun buildContent(
-                map: HashMap<String, MutableList<Leaf>>,
-                github: GitHubInstance,
-                repositoryFullName: String,
-                currentBranch: GitLocalBranch
+            map: HashMap<String, MutableList<Leaf>>,
+            github: GitHubInstance,
+            repositoryFullName: String,
+            currentBranch: GitLocalBranch
         ) {
 
             refreshButton.addActionListener(ActionListener() {
+                localMode = false
                 clearJSplitPane()
                 populateCombo(currentBranch, github, repositoryFullName)
                 val mapSarif = extractSarif(github, repositoryFullName)
@@ -363,17 +369,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0) {
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
-                    ?.let { virtualFile ->
-                        FileEditorManager.getInstance(project).openTextEditor(
-                                OpenFileDescriptor(
-                                        project,
-                                        virtualFile,
-                                        lineNumber - 1,
-                                        columnNumber
-                                ),
-                                true // request focus to editor
-                        )
-                    }
+                ?.let { virtualFile ->
+                    FileEditorManager.getInstance(project).openTextEditor(
+                        OpenFileDescriptor(
+                            project,
+                            virtualFile,
+                            lineNumber - 1,
+                            columnNumber
+                        ),
+                        true // request focus to editor
+                    )
+                }
         }
 
         private fun clearJSplitPane() {
@@ -386,8 +392,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun extractSarif(
-                github: GitHubInstance,
-                repositoryFullName: String
+            github: GitHubInstance,
+            repositoryFullName: String
         ): HashMap<String, MutableList<Leaf>> {
             sarif = service.loadSarifFile(github, repositoryFullName, sarifGitHubRef)
             var map = HashMap<String, MutableList<Leaf>>()
@@ -413,13 +419,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun populateCombo(
-                currentBranch: GitLocalBranch?,
-                github: GitHubInstance,
-                repositoryFullName: String
+            currentBranch: GitLocalBranch?,
+            github: GitHubInstance,
+            repositoryFullName: String
         ) {
             selectList.removeAllItems()
             selectList.addItem(currentBranch?.name ?: "main")
-            val pullRequests = service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
+            val pullRequests =
+                service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests.isNotEmpty()) {
                 pullRequests.forEach {
                     val currentPr = it as LinkedHashMap<*, *>
