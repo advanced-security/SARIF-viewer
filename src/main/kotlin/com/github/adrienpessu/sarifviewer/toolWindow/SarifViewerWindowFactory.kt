@@ -15,6 +15,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -72,7 +73,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
         private var sarif: SarifSchema210 = SarifSchema210()
         private var myList = JTree()
-        private var selectList = JComboBox(arrayOf("main"))
+        private var selectList = ComboBox(arrayOf("main"))
         private val refreshButton: JButton = JButton("Refresh from GH")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
@@ -156,9 +157,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                     val map = extractSarif(github, repositoryFullName)
                     if (map.isEmpty()) {
-                        displayError("No SARIF file found for the repository $repositoryFullName and ref ${sarifGitHubRef}")
+                        displayError("No SARIF file found for the repository $repositoryFullName and ref $sarifGitHubRef")
                     } else {
-                        thisLogger().info("Load result for the repository $repositoryFullName and ref ${sarifGitHubRef}")
+                        thisLogger().info("Load result for the repository $repositoryFullName and ref $sarifGitHubRef")
                         buildContent(map, github, repositoryFullName, currentBranch)
                     }
                 } catch (e: SarifViewerException) {
@@ -233,10 +234,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
                     val selectedOption = comboBox.selectedItem
-                    sarifGitHubRef = if (selectedOption.toString().startsWith("pr")) {
+                    sarifGitHubRef = if (selectedOption?.toString()?.startsWith("pr") == true) {
                         "refs/pull/${selectedOption.toString().split(" ")[0].removePrefix("pr")}/merge"
                     } else {
-                        "refs/heads/${selectedOption.toString()}"
+                        "refs/heads/$selectedOption"
                     }
 
                     clearJSplitPane()
@@ -301,9 +302,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private fun treeBuilding(map: HashMap<String, MutableList<Leaf>>) {
             val root = DefaultMutableTreeNode(project.name)
 
-            map.forEach() { (key, value) ->
+            map.forEach { (key, value) ->
                 val ruleNode = DefaultMutableTreeNode(key)
-                value.forEach() { location ->
+                value.forEach { location ->
                     val locationNode = DefaultMutableTreeNode(location)
                     ruleNode.add(locationNode)
                 }
@@ -313,7 +314,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             myList = JTree(root)
 
             myList.isRootVisible = false
-            main = ScrollPaneFactory.createScrollPane(myList);
+            main = ScrollPaneFactory.createScrollPane(myList)
 
             details.isVisible = false
 
@@ -355,7 +356,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         }
                     }
                 }
-            });
+            })
         }
 
         private fun manageTreeIcons() {
