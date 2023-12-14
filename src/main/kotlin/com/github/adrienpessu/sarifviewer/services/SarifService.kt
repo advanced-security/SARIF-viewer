@@ -31,31 +31,36 @@ class SarifService {
     }
 
     fun analyseSarif(sarif: SarifSchema210): HashMap<String, MutableList<Leaf>> {
-        val map = HashMap<String, MutableList<Leaf>>()
 
-        sarif.runs.forEach { run ->
-            run?.results?.forEach { result ->
-                val properties = result.properties
-                val element = Leaf(
+        val map = HashMap<String, MutableList<Leaf>>()
+        try {
+            sarif.runs.forEach { run ->
+                run?.results?.forEach { result ->
+                    val additionalProperties = result.properties?.additionalProperties ?: mapOf()
+                    val element = Leaf(
                         leafName = result.message.text,
                         address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
                         steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
-                                ?: listOf(),
+                            ?: listOf(),
                         location = result.locations[0].physicalLocation.artifactLocation.uri,
                         ruleId = result.ruleId,
-                        ruleName = result.rule.id,
+                        ruleName = result.rule?.id ?: "",
                         ruleDescription = result.message.text,
                         level = result.level.toString(),
                         kind = result.kind.toString(),
-                        githubAlertNumber = properties.additionalProperties["github/alertNumber"].toString(),
-                        githubAlertUrl = properties.additionalProperties["github/alertUrl"].toString()
-                )
-                if (map.containsKey(result.rule.id)) {
-                    map[result.rule.id]?.add(element)
-                } else {
-                    map[result.rule.id] = mutableListOf(element)
+                        githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
+                        githubAlertUrl = additionalProperties["github/alertUrl"]?.toString() ?: ""
+                    )
+                    val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+                    if (map.containsKey(key)) {
+                        map[key]?.add(element)
+                    } else {
+                        map[key] = mutableListOf(element)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            throw SarifViewerException.INVALID_SARIF
         }
         return map
     }
@@ -84,12 +89,15 @@ class SarifService {
         return ObjectMapper().readValue(response)
     }
 
-    private fun getAnalysisFromGitHub(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): String {
+    private fun getAnalysisFromGitHub(
+        github: GitHubInstance,
+        repositoryFullName: String,
+        branchName: String = "main"
+    ): String {
 
         val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
-        println(s)
         val connection = URL(s)
-                .openConnection() as HttpURLConnection
+            .openConnection() as HttpURLConnection
 
         connection.apply {
             requestMethod = "GET"
@@ -132,7 +140,7 @@ class SarifService {
 
     private fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, analysisId: Int): String {
         val connection = URL("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses/$analysisId")
-                .openConnection() as HttpURLConnection
+            .openConnection() as HttpURLConnection
 
         connection.apply {
             requestMethod = "GET"
