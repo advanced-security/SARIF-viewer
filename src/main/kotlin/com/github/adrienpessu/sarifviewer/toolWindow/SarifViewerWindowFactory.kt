@@ -1,5 +1,6 @@
 package com.github.adrienpessu.sarifviewer.toolWindow
 
+import com.contrastsecurity.sarif.Result
 import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.adrienpessu.sarifviewer.configurable.Settings
@@ -72,9 +73,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var main = ScrollPaneFactory.createScrollPane()
         private val details = JBTabbedPane()
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
-        private var sarif: SarifSchema210 = SarifSchema210()
         private var myList = JTree()
-        private var selectList = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
+        private var comboBranchPR = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
         private val refreshButton: JButton = JButton("Refresh from GH")
         private val infos = JEditorPane()
         private val steps = JEditorPane()
@@ -115,7 +115,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             })
         }
 
-        private fun JBPanel<JBPanel<*>>.loadDataAndUI(repository: GitRepository, refreshCombo: Boolean = true) {
+        private fun JBPanel<JBPanel<*>>.loadDataAndUI(
+            repository: GitRepository,
+            selectedCombo: BranchItemComboBox? = null
+        ) {
             val currentBranch = repository.currentBranch
 
             val remote = repository.remotes.firstOrNull {
@@ -141,7 +144,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 return
             }
 
-            if (refreshCombo) {
+            if (selectedCombo == null) {
                 sarifGitHubRef = "refs/heads/${currentBranch?.name ?: "refs/heads/main"}"
             }
 
@@ -152,17 +155,32 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             if (repositoryFullName.isNotEmpty() && currentBranch?.name?.isNotEmpty() == true) {
                 try {
-                    if (refreshCombo) {
+                    if (selectedCombo == null) {
                         populateCombo(currentBranch, github, repositoryFullName)
                     }
 
-                    val map = extractSarif(github, repositoryFullName)
+                    val map = extractSarif(github, repositoryFullName, selectedCombo?.head)
                     if (map.isEmpty()) {
+                        val element = Leaf(
+                            leafName = "",
+                            address = "",
+                            steps = listOf(),
+                            location = "",
+                            ruleId = "",
+                            ruleName = "",
+                            ruleDescription = "",
+                            level = "",
+                            kind = "",
+                            githubAlertNumber = "",
+                            githubAlertUrl = "",
+                        )
+                        map["No SARIF file found for the repository $repositoryFullName and ref $sarifGitHubRef"] =
+                            listOf(element).toMutableList()
                         displayError("No SARIF file found for the repository $repositoryFullName and ref $sarifGitHubRef")
                     } else {
                         thisLogger().info("Load result for the repository $repositoryFullName and ref $sarifGitHubRef")
-                        buildContent(map, github, repositoryFullName, currentBranch)
                     }
+                    buildContent(map, github, repositoryFullName, currentBranch)
                 } catch (e: SarifViewerException) {
                     add(JLabel(e.message))
                     thisLogger().warn(e.message)
@@ -231,7 +249,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
             jToolBar.add(refreshButton)
 
-            selectList.addActionListener(ActionListener() { event ->
+            comboBranchPR.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null) {
                     val selectedOption = comboBox.selectedItem as BranchItemComboBox
@@ -244,14 +262,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     clearJSplitPane()
                     val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
                     if (repository != null) {
-                        loadDataAndUI(repository, false)
+                        loadDataAndUI(repository, selectedOption)
                     } else {
                         add(JLabel("No Git repository found"))
                     }
                 }
             })
 
-            jToolBar.add(selectList)
+            jToolBar.add(comboBranchPR)
 
             val localFileButton = JButton("📂")
             localFileButton.setSize(10, 10)
@@ -395,12 +413,28 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         private fun extractSarif(
             github: GitHubInstance,
-            repositoryFullName: String
+            repositoryFullName: String,
+            base: String? = null
         ): HashMap<String, MutableList<Leaf>> {
-            sarif = service.loadSarifFile(github, repositoryFullName, sarifGitHubRef)
+            val sarifs = service.getSarifFromGitHub(github, repositoryFullName, sarifGitHubRef).filterNotNull()
+            val results = sarifs.flatMap { it.runs?.get(0)?.results ?: emptyList() }
             var map = HashMap<String, MutableList<Leaf>>()
-            if (sarif.runs?.isEmpty() == false) {
-                map = service.analyseSarif(sarif)
+            if (sarifs.isNotEmpty()) {
+                if (sarifGitHubRef.startsWith("refs/pull/") && base != null) {
+                    val resultsToDisplay = ArrayList<Result>()
+                    val sarifMainBranch = service.getSarifFromGitHub(github, repositoryFullName, base).filterNotNull()
+                    val mainResults: List<Result> = sarifMainBranch.flatMap { it.runs?.get(0)?.results ?: emptyList() }
+
+                    for (currentResult in results) {
+                        if (mainResults.none { it.ruleId == currentResult.ruleId && it.message.text == currentResult.message.text }) {
+                            resultsToDisplay.add(currentResult)
+                        }
+                    }
+                    map = service.analyseResult(resultsToDisplay)
+                } else {
+                    map = sarifs.map { service.analyseSarif(it) }.reduce { acc, item -> acc.apply { putAll(item) } }
+                }
+
             }
 
             return map
@@ -425,19 +459,20 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             github: GitHubInstance,
             repositoryFullName: String
         ) {
-            selectList.removeAllItems()
-            selectList.addItem(BranchItemComboBox(0, currentBranch?.name ?: "main", "", ""))
+            comboBranchPR.removeAllItems()
+            comboBranchPR.addItem(BranchItemComboBox(0, currentBranch?.name ?: "main", "", ""))
             val pullRequests =
                 service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests.isNotEmpty()) {
                 pullRequests.forEach {
                     val currentPr = it as LinkedHashMap<*, *>
-                    selectList.addItem(
+                    comboBranchPR.addItem(
                         BranchItemComboBox(
                             currentPr["number"] as Int,
                             (currentPr["base"] as LinkedHashMap<String, String>)["ref"] ?: "",
                             (currentPr["head"] as LinkedHashMap<String, String>)["ref"] ?: "",
-                            currentPr["title"].toString()
+                            currentPr["title"].toString(),
+                            (currentPr["head"] as LinkedHashMap<String, String>)["commit_sha"] ?: ""
                         )
                     )
                 }

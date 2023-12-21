@@ -1,5 +1,6 @@
 package com.github.adrienpessu.sarifviewer.services
 
+import com.contrastsecurity.sarif.Result
 import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -8,6 +9,7 @@ import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.openapi.components.Service
+import com.intellij.util.alsoIfNull
 import net.minidev.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
@@ -16,18 +18,33 @@ import java.net.URL
 @Service(Service.Level.PROJECT)
 class SarifService {
 
-    fun loadSarifFile(github: GitHubInstance, repositoryFullName: String, branchName: String): SarifSchema210 {
+    fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, branchName: String): List<SarifSchema210?> {
         val analysisFromGitHub = getAnalysisFromGitHub(github, repositoryFullName, branchName)
         val objectMapper = ObjectMapper()
         val analysis: List<Root> = objectMapper.readValue(analysisFromGitHub)
-        if (analysis.isEmpty()) {
-            return SarifSchema210()
+
+        val ids = analysis.filter { it.commit_sha == analysis.first().commit_sha }.map { it.id }
+
+        return ids.map { id ->
+            val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id)
+            val sarif: SarifSchema210 = objectMapper.readValue(sarifFromGitHub)
+            sarif.alsoIfNull { SarifSchema210()  }
         }
-        val id = analysis.first().id
+    }
 
-        val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id)
+    fun analyseResult(results: List<Result>): HashMap<String, MutableList<Leaf>> {
+        val map = HashMap<String, MutableList<Leaf>>()
+        results.forEach { result ->
+            val element = leaf(result)
+            val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+            if (map.containsKey(key)) {
+                map[key]?.add(element)
+            } else {
+                map[key] = mutableListOf(element)
+            }
+        }
+        return map
 
-        return objectMapper.readValue(sarifFromGitHub, SarifSchema210::class.java)
     }
 
     fun analyseSarif(sarif: SarifSchema210): HashMap<String, MutableList<Leaf>> {
@@ -36,21 +53,7 @@ class SarifService {
         try {
             sarif.runs.forEach { run ->
                 run?.results?.forEach { result ->
-                    val additionalProperties = result.properties?.additionalProperties ?: mapOf()
-                    val element = Leaf(
-                        leafName = result.message.text,
-                        address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
-                        steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
-                            ?: listOf(),
-                        location = result.locations[0].physicalLocation.artifactLocation.uri,
-                        ruleId = result.ruleId,
-                        ruleName = result.rule?.id ?: "",
-                        ruleDescription = result.message.text,
-                        level = result.level.toString(),
-                        kind = result.kind.toString(),
-                        githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
-                        githubAlertUrl = additionalProperties["github/alertUrl"]?.toString() ?: ""
-                    )
+                    val element = leaf(result)
                     val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
                     if (map.containsKey(key)) {
                         map[key]?.add(element)
@@ -63,6 +66,25 @@ class SarifService {
             throw SarifViewerException.INVALID_SARIF
         }
         return map
+    }
+
+    private fun leaf(result: Result): Leaf {
+        val additionalProperties = result.properties?.additionalProperties ?: mapOf()
+        val element = Leaf(
+            leafName = result.message.text,
+            address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
+            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
+                ?: listOf(),
+            location = result.locations[0].physicalLocation.artifactLocation.uri,
+            ruleId = result.ruleId,
+            ruleName = result.rule?.id ?: "",
+            ruleDescription = result.message.text,
+            level = result.level.toString(),
+            kind = result.kind.toString(),
+            githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
+            githubAlertUrl = additionalProperties["github/alertUrl"]?.toString() ?: ""
+        )
+        return element
     }
 
     fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): JSONArray {
