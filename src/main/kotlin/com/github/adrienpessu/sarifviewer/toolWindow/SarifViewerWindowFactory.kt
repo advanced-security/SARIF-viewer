@@ -464,14 +464,15 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             val pullRequests =
                 service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests?.isNotEmpty() == true) {
-                pullRequests.forEach { currentPr ->
+                pullRequests.forEach {
+                    val currentPr = it as LinkedHashMap<*, *>
                     comboBranchPR.addItem(
                         BranchItemComboBox(
-                            currentPr.prNumber,
-                            currentPr.base.ref,
-                            currentPr.head.ref,
-                            currentPr.prTitle,
-                            currentPr.head.commit_sha
+                            currentPr["number"] as Int,
+                            (currentPr["base"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                            (currentPr["head"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                            currentPr["title"].toString(),
+                            (currentPr["head"] as LinkedHashMap<String, String>)["commit_sha"] ?: ""
                         )
                     )
                 }
