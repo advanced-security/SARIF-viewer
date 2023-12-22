@@ -1,6 +1,6 @@
 # SARIF-viewer
 
-<img alt="docs/vuln_tree.png" width="640" src="docs/settings.png"/>
+<img alt="docs/vuln_tree.png" width="640" src="docs/vuln_tree.png"/>
 
 <!-- Plugin description -->
 
