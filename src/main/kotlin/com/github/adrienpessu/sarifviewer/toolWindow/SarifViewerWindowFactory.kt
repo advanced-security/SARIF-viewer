@@ -177,8 +177,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     }
                     buildContent(map, github, repositoryFullName, currentBranch)
                 } catch (e: SarifViewerException) {
-                    add(JLabel(e.message))
                     thisLogger().warn(e.message)
+                    displayError(e.message)
                     return
                 }
 
