@@ -99,9 +99,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     if (!localMode) {
                         clearJSplitPane()
                         if (repository != null) {
-                            toggleLoading()
-                            loadDataAndUI(repository)
-                            toggleLoading()
+                            val worker = object : SwingWorker<Unit, Unit>() {
+                                override fun doInBackground() {
+                                    toggleLoading()
+                                    loadDataAndUI(repository)
+                                    toggleLoading()
+                                }
+                            }
+                            worker.execute()
                         }
                     }
                 }
