@@ -1,6 +1,6 @@
 # SARIF-viewer
 
-<img alt="docs/vuln_tree.png" height="800" src="docs/settings.png"/>
+<img alt="docs/vuln_tree.png" width="640" src="docs/settings.png"/>
 
 <!-- Plugin description -->
 
@@ -33,7 +33,7 @@ And add it to the plugin configuration via `Settings > Tools > Sarif Viewer`
 
 If you are using GHES, you must also provide the URL and the corresponding token of your GHES instance.
 
-<img alt="docs/settings.png" height="800" src="docs/settings.png"/>
+<img alt="docs/settings.png" width="640" src="docs/settings.png"/>
 
 ## Usage
 
