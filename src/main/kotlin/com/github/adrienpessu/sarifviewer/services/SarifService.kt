@@ -5,12 +5,12 @@ import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
+import com.github.adrienpessu.sarifviewer.models.GitHubPull
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.openapi.components.Service
 import com.intellij.util.alsoIfNull
-import net.minidev.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -87,7 +87,7 @@ class SarifService {
         return element
     }
 
-    fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): JSONArray {
+    fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): List<GitHubPull>? {
         val head = "${repositoryFullName.split("/")[0]}:$branchName"
         val connection = URL("${github.apiBase}/repos/$repositoryFullName/pulls?state=open&head=$head")
             .openConnection() as HttpURLConnection
@@ -107,7 +107,6 @@ class SarifService {
         val response = connection.inputStream.bufferedReader().readText()
 
         connection.disconnect()
-
         return ObjectMapper().readValue(response)
     }
 
