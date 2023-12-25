@@ -1,6 +1,7 @@
 # SARIF-viewer
 
-![Version](https://img.shields.io/jetbrains/plugin/v/23159-sarif-viewer)
+![Version](https://img.shields.io/jetbrains/plugin/v/23159-sarif-viewer) ![example branch parameter](https://github.com/adrienpessu/SARIF-viewer/actions/workflows/build.yml/badge.svg?branch=main)
+
 
 <img alt="docs/vuln_tree.png" width="640" src="docs/vuln_tree.png"/>
 
