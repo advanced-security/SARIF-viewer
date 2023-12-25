@@ -47,3 +47,6 @@ If the current branch has one or more pull request, you will be able to select w
 
 The result will be grouped by vulnerabilities and you will be able to navigate to the source code by clicking on the result. Also a detail will also be displayed with the path of the vulnerability and the description to help you remediate.
 
+## 🤝&nbsp; Found a bug? Missing a specific feature?
+
+Feel free to **file a new issue** with a respective [title and description](https://github.com/adrienpessu/SARIF-viewer/issues) repository. If you already found a solution to your problem, **we would love to review your pull request**!
