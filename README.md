@@ -1,5 +1,7 @@
 # SARIF-viewer
 
+![Version](https://img.shields.io/jetbrains/plugin/v/23159-sarif-viewer)
+
 <img alt="docs/vuln_tree.png" width="640" src="docs/vuln_tree.png"/>
 
 <!-- Plugin description -->
