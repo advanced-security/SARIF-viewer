@@ -10,19 +10,25 @@ import com.github.adrienpessu.sarifviewer.models.BranchItemComboBox
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
+import com.intellij.openapi.ui.MessageType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.editor.ScrollType
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.popup.Balloon
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ScrollPaneFactory
+import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
@@ -233,7 +239,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
-
             infos.isEditable = false
             infos.addHyperlinkListener(object : HyperlinkListener {
                 override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
@@ -416,7 +421,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             steps.contentType = "text/html"
 
                             details.isVisible = true
-                            openFile(project, leaf.location, leaf.address.split(":")[1].toInt())
+                            openFile(project, leaf.location, leaf.address.split(":")[1].toInt(), 0, leaf.level, leaf.ruleDescription)
 
                             splitPane.setDividerLocation(0.5)
 
@@ -436,7 +441,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             UIManager.put("Tree.leafIcon", icon)
         }
 
-        private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0) {
+        private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0, level: String = "", ruleDescription: String = "") {
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
                 ?.let { virtualFile ->
@@ -449,12 +454,39 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         ),
                         true // request focus to editor
                     )
+                    FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
+                        val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
+                        val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
+                        val editor = FileEditorManager.getInstance(project).selectedTextEditor?: return
+                        editor.caretModel.moveToOffset(lineStartOffset)
+                        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+                        editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
+
+                        val messageType = when (level) {
+                            "error" -> MessageType.ERROR
+                            "warning" -> MessageType.WARNING
+                            else -> MessageType.INFO
+                        }
+
+                        // add a balloon on the selection
+                        val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
+                            ruleDescription,
+                            messageType,
+                            null
+                        ).createBalloon()
+                        balloon.show(RelativePoint(editor.contentComponent, editor.visualPositionToXY(editor.caretModel.visualPosition )), Balloon.Position.above)
+
+                    }
+
                 }
         }
 
         private fun clearJSplitPane() {
-            myList.model = DefaultTreeModel(DefaultMutableTreeNode())
-            myList.updateUI()
+            if (myList.components != null) {
+                myList.model = DefaultTreeModel(DefaultMutableTreeNode())
+                myList.updateUI()
+            }
+
             infos.text = ""
             steps.text = ""
             details.isVisible = false
