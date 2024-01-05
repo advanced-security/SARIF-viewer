@@ -9,6 +9,15 @@
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
+    <actions>
+        <action id="OpenLocalFileAction" icon="AllIcons.Actions.MenuOpen" class="com.github.adrienpessu.sarifviewer.actions.OpenLocalAction" text="Open local SARIF file">
+        </action>
+        <action id="RefreshAction" icon="AllIcons.Actions.ForceRefresh" class="com.github.adrienpessu.sarifviewer.actions.RefreshAction" text="Refresh from GitHub">
+        </action>
+    </actions>
+
+
+
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="com.github.adrienpessu.sarifviewer.toolWindow.SarifViewerWindowFactory" id="Sarif viewer"/>
         <applicationConfigurable

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
+import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.openapi.components.Service
 import com.intellij.util.alsoIfNull
@@ -46,38 +47,66 @@ class SarifService {
 
     }
 
-    fun analyseSarif(sarif: SarifSchema210): HashMap<String, MutableList<Leaf>> {
+    fun analyseSarif(sarif: SarifSchema210, view: View): HashMap<String, MutableList<Leaf>> {
 
-        val map = HashMap<String, MutableList<Leaf>>()
-        try {
-            sarif.runs.forEach { run ->
-                run?.results?.forEach { result ->
-                    val element = leaf(result)
-                    val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
-                    if (map.containsKey(key)) {
-                        map[key]?.add(element)
-                    } else {
-                        map[key] = mutableListOf(element)
+        when (view) {
+            View.RULE -> {
+                val map = HashMap<String, MutableList<Leaf>>()
+                try {
+                    sarif.runs.forEach { run ->
+                        run?.results?.forEach { result ->
+                            val element = leaf(result)
+                            val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+                            if (map.containsKey(key)) {
+                                map[key]?.add(element)
+                            } else {
+                                map[key] = mutableListOf(element)
+                            }
+                        }
                     }
+                } catch (e: Exception) {
+                    throw SarifViewerException.INVALID_SARIF
                 }
+                return map
             }
-        } catch (e: Exception) {
-            throw SarifViewerException.INVALID_SARIF
+            View.LOCATION -> {
+                val map = HashMap<String, MutableList<Leaf>>()
+                try {
+                    sarif.runs.forEach { run ->
+                        run?.results?.forEach { result ->
+                            val element = leaf(result)
+                            val key = result.locations[0].physicalLocation.artifactLocation.uri
+                            if (map.containsKey(key)) {
+                                map[key]?.add(element)
+                            } else {
+                                map[key] = mutableListOf(element)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    throw SarifViewerException.INVALID_SARIF
+                }
+                return map
+            }
+            else -> {
+                throw SarifViewerException.INVALID_VIEW
+            }
         }
-        return map
+
+
     }
 
     private fun leaf(result: Result): Leaf {
         val additionalProperties = result.properties?.additionalProperties ?: mapOf()
         val element = Leaf(
-            leafName = result.message.text,
+            leafName = result.message.text ?: "",
             address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
             steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
                 ?: listOf(),
             location = result.locations[0].physicalLocation.artifactLocation.uri,
             ruleId = result.ruleId,
             ruleName = result.rule?.id ?: "",
-            ruleDescription = result.message.text,
+            ruleDescription = result.message.text ?: "",
             level = result.level.toString(),
             kind = result.kind.toString(),
             githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
