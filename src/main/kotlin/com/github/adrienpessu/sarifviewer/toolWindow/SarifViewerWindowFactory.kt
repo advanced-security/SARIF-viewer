@@ -10,11 +10,12 @@ import com.github.adrienpessu.sarifviewer.configurable.SettingsState
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
 import com.github.adrienpessu.sarifviewer.models.BranchItemComboBox
 import com.github.adrienpessu.sarifviewer.models.Leaf
+import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
-import com.intellij.openapi.ui.MessageType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.components.service
@@ -23,9 +24,11 @@ import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.progress.util.ProgressWindow
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -34,15 +37,16 @@ import com.intellij.openapi.wm.ToolWindowAnchor
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.awt.RelativePoint
-import com.intellij.ui.components.JBPanel
-import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.*
 import com.intellij.ui.content.ContentFactory
 import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
+import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Desktop
+import java.awt.Dimension
 import java.awt.event.ActionListener
 import java.io.File
 import java.net.URI
@@ -118,6 +122,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var sarifGitHubRef = ""
         private var loading = false
         private var disableComboBoxEvent = false
+        private val views = View.views
+        private var currentView = View.RULE
+        private var cacheSarif: SarifSchema210? = null
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
 
@@ -303,6 +310,41 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             jToolBar.isRollover = true
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
 
+            val viewComboBox = ComboBox(View.views)
+            viewComboBox.selectedItem = currentView
+
+            viewComboBox.addActionListener(ActionListener() { event ->
+                if (event.source is ComboBox<*>) {
+                    val link = event.source as ComboBox<View>
+                    val selectedItem = link.selectedItem as View
+                    if (event.actionCommand == "comboBoxChanged" && !DumbService.isDumb(project) && selectedItem.key != currentView.key) {
+                        val worker = object : SwingWorker<Unit, Unit>() {
+                            override fun doInBackground() {
+                                toggleLoading()
+                                currentView = selectedItem
+                                clearJSplitPane()
+                                var map = HashMap<String, MutableList<Leaf>>()
+                                if (localMode) {
+                                    if (cacheSarif?.runs?.isEmpty() == false) {
+                                        map = service.analyseSarif(cacheSarif!!, currentView)
+                                    }
+                                } else {
+                                    map = extractSarif(github!!, repositoryFullName!!, sarifGitHubRef)
+                                    treeBuilding(map)
+                                }
+                                treeBuilding(map)
+                                toggleLoading()
+
+                            }
+                        }
+                        worker.execute()
+                    }
+                }
+            })
+            jToolBar.add(viewComboBox)
+
+            jToolBar.add(JLabel("Branch/PR: "))
+
             comboBranchPR.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null
@@ -437,7 +479,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             steps.contentType = "text/html"
 
                             details.isVisible = true
-                            openFile(project, leaf.location, leaf.address.split(":")[1].toInt(), 0, leaf.level, leaf.ruleDescription)
+                            openFile(
+                                project,
+                                leaf.location,
+                                leaf.address.split(":")[1].toInt(),
+                                0,
+                                leaf.level,
+                                leaf.ruleDescription
+                            )
 
                             splitPane.setDividerLocation(0.5)
 
@@ -457,7 +506,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             UIManager.put("Tree.leafIcon", icon)
         }
 
-        private fun openFile(project: Project, path: String, lineNumber: Int, columnNumber: Int = 0, level: String = "", ruleDescription: String = "") {
+        private fun openFile(
+            project: Project,
+            path: String,
+            lineNumber: Int,
+            columnNumber: Int = 0,
+            level: String = "",
+            ruleDescription: String = ""
+        ) {
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
                 ?.let { virtualFile ->
@@ -473,7 +529,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
                         val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
                         val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-                        val editor = FileEditorManager.getInstance(project).selectedTextEditor?: return
+                        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
                         editor.caretModel.moveToOffset(lineStartOffset)
                         editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
                         editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
@@ -490,7 +546,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             messageType,
                             null
                         ).createBalloon()
-                        balloon.show(RelativePoint(editor.contentComponent, editor.visualPositionToXY(editor.caretModel.visualPosition )), Balloon.Position.above)
+                        balloon.show(
+                            RelativePoint(
+                                editor.contentComponent,
+                                editor.visualPositionToXY(editor.caretModel.visualPosition)
+                            ), Balloon.Position.above
+                        )
 
                     }
 
@@ -515,8 +576,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             base: String? = null
         ): HashMap<String, MutableList<Leaf>> {
             val sarifs = service.getSarifFromGitHub(github, repositoryFullName, sarifGitHubRef).filterNotNull()
-            val results = sarifs.flatMap { it.runs?.get(0)?.results ?: emptyList() }
             var map = HashMap<String, MutableList<Leaf>>()
+            val results = sarifs.flatMap { it.runs?.get(0)?.results ?: emptyList() }
             if (sarifs.isNotEmpty()) {
                 if (sarifGitHubRef.startsWith("refs/pull/") && base != null) {
                     val resultsToDisplay = ArrayList<Result>()
@@ -530,9 +591,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     }
                     map = service.analyseResult(resultsToDisplay)
                 } else {
-                    map = sarifs.map { service.analyseSarif(it) }.reduce { acc, item -> acc.apply { putAll(item) } }
+                    map = sarifs.map { service.analyseSarif(it, currentView) }
+                        .reduce { acc, item -> acc.apply { putAll(item) } }
                 }
-
             }
 
             return map
@@ -544,9 +605,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             // file to String
             val sarifString = file.readText(Charset.defaultCharset())
             val sarif = ObjectMapper().readValue(sarifString, SarifSchema210::class.java)
+            cacheSarif = sarif
             var map = HashMap<String, MutableList<Leaf>>()
             if (sarif.runs?.isEmpty() == false) {
-                map = service.analyseSarif(sarif)
+                map = service.analyseSarif(sarif, currentView)
             }
 
             return map

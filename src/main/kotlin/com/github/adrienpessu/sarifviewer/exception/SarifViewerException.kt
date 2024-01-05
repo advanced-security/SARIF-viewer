@@ -7,5 +7,6 @@ class SarifViewerException(val code: Int, override val message: String): Excepti
         val INVALID_REPOSITORY = SarifViewerException(4, "Invalid repository or no analyses available")
         val INVALID_BRANCH = SarifViewerException(5, "Invalid branch")
         val INVALID_SARIF = SarifViewerException(7, "Invalid SARIF file")
+        val INVALID_VIEW = SarifViewerException(8, "Invalid view type")
     }
 }
