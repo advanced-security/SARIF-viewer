@@ -305,12 +305,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             add(errorToolbar)
 
             val jToolBar = JToolBar("", JToolBar.HORIZONTAL)
-            jToolBar.setSize(100, 10)
             jToolBar.isFloatable = false
             jToolBar.isRollover = true
             jToolBar.alignmentX = Component.LEFT_ALIGNMENT
 
             val viewComboBox = ComboBox(View.views)
+
+            viewComboBox.maximumSize = Dimension(100, 30)
+
             viewComboBox.selectedItem = currentView
 
             viewComboBox.addActionListener(ActionListener() { event ->
@@ -343,7 +345,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             })
             jToolBar.add(viewComboBox)
 
-            jToolBar.add(JLabel("Branch/PR: "))
+            val jLabel = JLabel("Branch/PR: ")
+            jLabel.maximumSize = Dimension(100, jToolBar.preferredSize.height)
+
+            jToolBar.add(jLabel)
 
             comboBranchPR.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
