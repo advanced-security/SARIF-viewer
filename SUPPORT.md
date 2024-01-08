@@ -6,7 +6,7 @@
 
 This project uses GitHub issues to track bugs and feature requests. Please search the existing issues before filing new issues to avoid duplicates. For new issues, file your bug or feature request as a new issue.
 
-For help or questions about using this project, please raise an issue and tag @s-samadi and @theztefan
+For help or questions about using this project, please raise an issue and tag @adrienpessu
 
 This solution is not actively developed but is maintained by GitHub staff. We will do our best to respond to support and community questions in a timely manner. 
 
