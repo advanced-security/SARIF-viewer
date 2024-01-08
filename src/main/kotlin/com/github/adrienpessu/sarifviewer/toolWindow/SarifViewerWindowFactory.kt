@@ -403,12 +403,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         fun openLocalFile() {
             val fileChooser = JFileChooser()
             fileChooser.fileFilter = FileNameExtensionFilter("SARIF files", "sarif")
-            val returnValue = fileChooser.showOpenDialog(null)
-            if (returnValue == JFileChooser.APPROVE_OPTION) {
-                val selectedFile: File = fileChooser.selectedFile
-                val extractSarifFromFile = extractSarifFromFile(selectedFile)
-                treeBuilding(extractSarifFromFile)
-                localMode = true
+            SwingUtilities.invokeLater {
+                val returnValue = fileChooser.showOpenDialog(null)
+                if (returnValue == JFileChooser.APPROVE_OPTION) {
+                    val selectedFile: File = fileChooser.selectedFile
+                    val extractSarifFromFile = extractSarifFromFile(selectedFile)
+                    treeBuilding(extractSarifFromFile)
+                    localMode = true
+                }
             }
         }
 
@@ -565,8 +567,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
         private fun clearJSplitPane() {
             if (myList.components != null) {
-                myList.model = DefaultTreeModel(DefaultMutableTreeNode())
-                myList.updateUI()
+                SwingUtilities.invokeLater {
+                    myList.model = DefaultTreeModel(DefaultMutableTreeNode())
+                    myList.updateUI()
+                }
             }
 
             infos.text = ""
