@@ -14,6 +14,14 @@ data class Leaf(
         val githubAlertUrl: String,
 ) {
     override fun toString(): String {
-        return address
+
+        val icon = when (level) {
+            "error" -> "🛑"
+            "warning" -> "⚠️"
+            "note" -> "📝"
+            else -> ""
+        }
+
+        return "$icon $address"
     }
 }
