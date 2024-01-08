@@ -1,6 +1,6 @@
 # SARIF-viewer
 
-![Version](https://img.shields.io/jetbrains/plugin/v/23159-sarif-viewer) ![example branch parameter](https://github.com/adrienpessu/SARIF-viewer/actions/workflows/build.yml/badge.svg?branch=main)
+![Version](https://img.shields.io/jetbrains/plugin/v/23159-sarif-viewer) ![example branch parameter](https://github.com/advanced-security/SARIF-viewer/actions/workflows/build.yml/badge.svg?branch=main)
 
 
 <img alt="docs/vuln_tree.png" width="640" src="docs/vuln_tree.png"/>
@@ -22,7 +22,7 @@ You must provide in the settings a personal access token (PAT) to access the Git
 
 ### Manual
 
-- Download the signed zip file release from GitHub Releases : https://github.com/adrienpessu/SARIF-viewer/releases
+- Download the signed zip file release from GitHub Releases : https://github.com/advanced-security/SARIF-viewer/releases
 - Add it to you IDE via `Settings > Plugins > Install Plugin from Disk...`
 
 ## Configuration
@@ -49,4 +49,8 @@ The result will be grouped by vulnerabilities and you will be able to navigate t
 
 ## 🤝&nbsp; Found a bug? Missing a specific feature?
 
-Feel free to **file a new issue** with a respective [title and description](https://github.com/adrienpessu/SARIF-viewer/issues) repository. If you already found a solution to your problem, **we would love to review your pull request**!
+Feel free to **file a new issue** with a respective [title and description](https://github.com/advanced-security/SARIF-viewer/issues) repository. If you already found a solution to your problem, **we would love to review your pull request**!
+
+## License 
+
+This project is licensed under the terms of the MIT open source license. Please refer to [MIT](./LICENSE.txt) for the full terms.
