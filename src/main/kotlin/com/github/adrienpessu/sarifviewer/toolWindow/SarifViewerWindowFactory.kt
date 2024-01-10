@@ -459,7 +459,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     if (e != null && e.isAddedPath) {
                         val leaves = map[e.path.parentPath.lastPathComponent.toString()]
                         if (!leaves.isNullOrEmpty()) {
-                            val leaf = leaves.first { it.address == e.path.lastPathComponent.toString() }
+                            val leaf = try {
+                                leaves.first { it.address == ((e.path.lastPathComponent as DefaultMutableTreeNode).userObject as Leaf).address }
+                            } catch (e: Exception) {
+                                leaves.first()
+                            }
 
                             val githubAlertUrl = leaf.githubAlertUrl
                                 .replace("api.", "")
@@ -588,7 +592,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     val mainResults: List<Result> = sarifMainBranch.flatMap { it.runs?.get(0)?.results ?: emptyList() }
 
                     for (currentResult in results) {
-                        if (mainResults.none { it.ruleId == currentResult.ruleId && it.message.text == currentResult.message.text }) {
+                        if (mainResults.none { it.ruleId == currentResult.ruleId
+                                    && ("${currentResult.locations[0].physicalLocation.artifactLocation.uri}:${currentResult.locations[0].physicalLocation.region.startLine}" == "${it.locations[0].physicalLocation.artifactLocation.uri}:${it.locations[0].physicalLocation.region.startLine}") }) {
                             resultsToDisplay.add(currentResult)
                         }
                     }
