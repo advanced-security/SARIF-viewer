@@ -1,6 +1,7 @@
 package com.github.adrienpessu.sarifviewer.configurable
 
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import javax.swing.JComponent
@@ -9,9 +10,9 @@ import javax.swing.JPanel
 
 class SettingComponent {
     private var myMainPanel: JPanel? = null
-    private val ghTokenText = JBTextField()
+    private val ghTokenText = JBPasswordField()
     private val ghesHostnameText = JBTextField()
-    private val ghesTokenText = JBTextField()
+    private val ghesTokenText = JBPasswordField()
 
     init {
         myMainPanel = FormBuilder.createFormBuilder()
