@@ -22,6 +22,6 @@ data class Leaf(
             else -> ""
         }
 
-        return "$icon $address"
+        return "$icon ${address.split("/").last()} $ruleDescription"
     }
 }
