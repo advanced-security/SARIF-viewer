@@ -13,7 +13,6 @@ import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
-import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionManager
@@ -38,26 +37,29 @@ import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.ui.table.JBTable
 import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
 import java.awt.Component
+import java.awt.Cursor
 import java.awt.Desktop
 import java.awt.Dimension
 import java.awt.event.ActionListener
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.io.File
 import java.net.URI
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.*
-import javax.swing.event.HyperlinkEvent
-import javax.swing.event.HyperlinkListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.filechooser.FileNameExtensionFilter
-import javax.swing.text.html.HTMLEditorKit
+import javax.swing.table.DefaultTableCellRenderer
+import javax.swing.table.DefaultTableModel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 
@@ -86,7 +88,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             (openLocalFileAction as OpenLocalAction).myToolWindow = this
             val refreshAction = actionManager.getAction("RefreshAction")
             (refreshAction as RefreshAction).myToolWindow = this
-            val actions = ArrayList<AnAction>();
+            val actions = ArrayList<AnAction>()
             actions.add(openLocalFileAction)
             actions.add(refreshAction)
 
@@ -94,11 +96,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         internal var github: GitHubInstance? = null
-            get() = field
         internal var repositoryFullName: String? = null
-            get() = field
         internal var currentBranch: GitLocalBranch? = null
-            get() = field
 
         private var localMode = false
         private val service = toolWindow.project.service<SarifService>()
@@ -106,17 +105,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var main = ScrollPaneFactory.createScrollPane()
         private val details = JBTabbedPane()
         private val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, false, main, details)
-        private var myList = JTree()
+        private var myList = com.intellij.ui.treeStructure.Tree()
         private var comboBranchPR = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
-        private val infos = JEditorPane()
-        private val steps = JEditorPane()
+        private val tableInfos = JBTable(DefaultTableModel(arrayOf<Any>("Property", "Value"), 0))
+        private val tableSteps = JBTable(DefaultTableModel(arrayOf<Any>("Path"), 0))
+        private val steps = JPanel()
         private val errorField = JLabel("Error message here ")
         private val errorToolbar = JToolBar("", JToolBar.HORIZONTAL)
         private val loadingPanel = JPanel()
         private var sarifGitHubRef = ""
         private var loading = false
         private var disableComboBoxEvent = false
-        private val views = View.views
         private var currentView = View.RULE
         private var cacheSarif: SarifSchema210? = null
 
@@ -263,26 +262,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
-            infos.isEditable = false
-            infos.addHyperlinkListener(object : HyperlinkListener {
-                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
-                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType && hle?.description != null) {
-                        Desktop.getDesktop().browse(URI(hle.description))
-                    }
-                }
-            })
-            steps.isEditable = false
-            steps.addHyperlinkListener(object : HyperlinkListener {
-                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
-                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType) {
-                        hle?.description.toString().split(":").let { location ->
-                            openFile(project, location[0], location[1].toInt())
-                        }
-                    }
-                }
-            })
+            steps.layout = BoxLayout(steps, BoxLayout.Y_AXIS)
+            tableSteps.size = Dimension(steps.width, steps.height)
+            steps.add(tableSteps)
 
-            details.addTab("Infos", infos)
+            // Add the table to a scroll pane
+            val scrollPane = JScrollPane(tableInfos)
+
+            details.addTab("Infos", scrollPane)
             details.addTab("Steps", steps)
 
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -436,7 +423,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             val root = DefaultMutableTreeNode(project.name)
 
             map.forEach { (key, value) ->
-                val ruleNode = DefaultMutableTreeNode(key)
+                val ruleNode = DefaultMutableTreeNode("$key (${value.size})")
                 value.forEach { location ->
                     val locationNode = DefaultMutableTreeNode(location)
                     ruleNode.add(locationNode)
@@ -444,9 +431,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 root.add(ruleNode)
             }
 
-            myList = JTree(root)
+            myList = com.intellij.ui.treeStructure.Tree(root)
 
             myList.isRootVisible = false
+            myList.showsRootHandles = true
             main = ScrollPaneFactory.createScrollPane(myList)
 
             details.isVisible = false
@@ -457,7 +445,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             myList.addTreeSelectionListener(object : TreeSelectionListener {
                 override fun valueChanged(e: TreeSelectionEvent?) {
                     if (e != null && e.isAddedPath) {
-                        val leaves = map[e.path.parentPath.lastPathComponent.toString()]
+                        val leaves = map[e.path.parentPath.lastPathComponent.toString().split(" ").first()]
                         if (!leaves.isNullOrEmpty()) {
                             val leaf = try {
                                 leaves.first { it.address == ((e.path.lastPathComponent as DefaultMutableTreeNode).userObject as Leaf).address }
@@ -470,18 +458,91 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                 .replace("api/v3/", "")
                                 .replace("repos/", "")
                                 .replace("code-scanning/alerts", "security/code-scanning")
-                            val githubURL = "<a target=\"_BLANK\" href=\"$githubAlertUrl\">$githubAlertUrl</a>"
 
-                            infos.contentType = "text/html"
+                            tableInfos.clearSelection()
+                            // Create a table model with "Property" and "Value" columns
+                            val defaultTableModel: DefaultTableModel =
+                                object : DefaultTableModel(arrayOf<Any>("Property", "Value"), 0) {
+                                    override fun isCellEditable(row: Int, column: Int): Boolean {
+                                        return false
+                                    }
+                                }
+                            tableInfos.model = defaultTableModel
 
-                            infos.text =
-                                "${leaf.leafName} <br/> Level: ${leaf.level} <br/>Rule's name: ${leaf.ruleName} <br/>Rule's description ${leaf.ruleDescription} <br/>Location ${leaf.location} <br/>GitHub alert number: ${leaf.githubAlertNumber} <br/>GitHub alert url ${githubURL}\n"
+                            // Add some data
+                            defaultTableModel.addRow(arrayOf<Any>("Name", leaf.leafName))
+                            defaultTableModel.addRow(arrayOf<Any>("Level", leaf.level))
+                            defaultTableModel.addRow(arrayOf<Any>("Rule's name", leaf.ruleName))
+                            defaultTableModel.addRow(arrayOf<Any>("Rule's description", leaf.ruleDescription))
+                            defaultTableModel.addRow(arrayOf<Any>("Location", leaf.location))
+                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", leaf.githubAlertNumber))
+                            defaultTableModel.addRow(
+                                arrayOf<Any>(
+                                    "GitHub alert url",
+                                    "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"
+                                )
+                            )
 
-                            steps.read(leaf.steps.joinToString("<br/>") { step ->
-                                "<a href=\"$step\">${step.split("/").last()}</a>"
-                            }.byteInputStream(Charset.defaultCharset()), HTMLEditorKit::class.java)
+                            tableInfos.setDefaultRenderer(Object::class.java, object : DefaultTableCellRenderer() {
+                                override fun getTableCellRendererComponent(
+                                    table: JTable?,
+                                    value: Any?,
+                                    isSelected: Boolean,
+                                    hasFocus: Boolean,
+                                    row: Int,
+                                    column: Int
+                                ): Component {
+                                    var c = super.getTableCellRendererComponent(
+                                        table,
+                                        value,
+                                        isSelected,
+                                        hasFocus,
+                                        row,
+                                        column
+                                    )
+                                    if (row == tableInfos.rowCount - 1 && column == tableInfos.columnCount - 1) {
+                                        val url = tableInfos.getValueAt(row, column).toString()
+                                        c = JLabel("<html><a href='$url'>$url</a></html>")
+                                        c.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                                    }
+                                    return c
+                                }
+                            })
 
-                            steps.contentType = "text/html"
+
+                            tableInfos.addMouseListener(object : MouseAdapter() {
+                                override fun mouseClicked(e: MouseEvent) {
+                                    val row = tableInfos.rowAtPoint(e.point)
+                                    val column = tableInfos.columnAtPoint(e.point)
+                                    if (row == tableInfos.rowCount - 1) {
+                                        if (column == tableInfos.columnCount - 1) {
+                                            if (Desktop.isDesktopSupported() && Desktop.getDesktop()
+                                                    .isSupported(Desktop.Action.BROWSE)
+                                            ) {
+                                                Desktop.getDesktop().browse(URI(githubAlertUrl))
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+
+                            tableInfos.updateUI()
+
+                            tableSteps.clearSelection()
+
+                            tableSteps.model = DefaultTableModel(arrayOf<Any>("Path"), 0)
+
+                            leaf.steps.forEachIndexed { index, step ->
+                                (tableSteps.model as DefaultTableModel).addRow(arrayOf<Any>("$index $step"))
+                            }
+
+                            tableSteps.addMouseListener(object : MouseAdapter() {
+                                override fun mouseClicked(e: MouseEvent) {
+                                    val row = tableInfos.rowAtPoint(e.point)
+                                    val path = leaf.steps[row].split(":")
+                                    openFile(project, path[0], path[1].toInt())
+                                }
+                            })
 
                             details.isVisible = true
                             openFile(
@@ -532,32 +593,33 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         true // request focus to editor
                     )
                     FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
-                        val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
-                        val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-                        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                        editor.caretModel.moveToOffset(lineStartOffset)
-                        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
-                        editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
+                        if (ruleDescription.isNotEmpty()) {
+                            val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
+                            val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
+                            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                            editor.caretModel.moveToOffset(lineStartOffset)
+                            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+                            editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
 
-                        val messageType = when (level) {
-                            "error" -> MessageType.ERROR
-                            "warning" -> MessageType.WARNING
-                            else -> MessageType.INFO
+                            val messageType = when (level) {
+                                "error" -> MessageType.ERROR
+                                "warning" -> MessageType.WARNING
+                                else -> MessageType.INFO
+                            }
+
+                            // add a balloon on the selection
+                            val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
+                                ruleDescription,
+                                messageType,
+                                null
+                            ).createBalloon()
+                            balloon.show(
+                                RelativePoint(
+                                    editor.contentComponent,
+                                    editor.visualPositionToXY(editor.caretModel.visualPosition)
+                                ), Balloon.Position.above
+                            )
                         }
-
-                        // add a balloon on the selection
-                        val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
-                            ruleDescription,
-                            messageType,
-                            null
-                        ).createBalloon()
-                        balloon.show(
-                            RelativePoint(
-                                editor.contentComponent,
-                                editor.visualPositionToXY(editor.caretModel.visualPosition)
-                            ), Balloon.Position.above
-                        )
-
                     }
 
                 }
@@ -571,8 +633,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 }
             }
 
-            infos.text = ""
-            steps.text = ""
+            tableInfos.clearSelection()
+            tableInfos.updateUI()
+            tableSteps.clearSelection()
+            tableSteps.updateUI()
             details.isVisible = false
             errorToolbar.isVisible = false
         }
@@ -592,8 +656,10 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     val mainResults: List<Result> = sarifMainBranch.flatMap { it.runs?.get(0)?.results ?: emptyList() }
 
                     for (currentResult in results) {
-                        if (mainResults.none { it.ruleId == currentResult.ruleId
-                                    && ("${currentResult.locations[0].physicalLocation.artifactLocation.uri}:${currentResult.locations[0].physicalLocation.region.startLine}" == "${it.locations[0].physicalLocation.artifactLocation.uri}:${it.locations[0].physicalLocation.region.startLine}") }) {
+                        if (mainResults.none {
+                                it.ruleId == currentResult.ruleId
+                                        && ("${currentResult.locations[0].physicalLocation.artifactLocation.uri}:${currentResult.locations[0].physicalLocation.region.startLine}" == "${it.locations[0].physicalLocation.artifactLocation.uri}:${it.locations[0].physicalLocation.region.startLine}")
+                            }) {
                             resultsToDisplay.add(currentResult)
                         }
                     }
