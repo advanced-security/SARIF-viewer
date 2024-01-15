@@ -43,9 +43,14 @@ import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
 import java.awt.Component
+import java.awt.Cursor
+import java.awt.Desktop
 import java.awt.Dimension
 import java.awt.event.ActionListener
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.io.File
+import java.net.URI
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
@@ -55,6 +60,7 @@ import javax.swing.event.HyperlinkListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.filechooser.FileNameExtensionFilter
+import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
 import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
@@ -105,6 +111,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var myList = com.intellij.ui.treeStructure.Tree()
         private var comboBranchPR = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
         private val tableInfos = JBTable(DefaultTableModel(arrayOf<Any>("Property", "Value"), 0))
+        private val tableSteps = JBTable(DefaultTableModel(arrayOf<Any>("Path"), 0))
         private val steps = JEditorPane()
         private val errorField = JLabel("Error message here ")
         private val errorToolbar = JToolBar("", JToolBar.HORIZONTAL)
@@ -258,14 +265,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
-
-//            infos.addHyperlinkListener(object : HyperlinkListener {
-//                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
-//                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType && hle?.description != null) {
-//                        Desktop.getDesktop().browse(URI(hle.description))
-//                    }
-//                }
-//            })
             steps.isEditable = false
             steps.addHyperlinkListener(object : HyperlinkListener {
                 override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
@@ -479,8 +478,6 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                     }
                                 }
                             tableInfos.model = defaultTableModel
-                            // Set a custom cell renderer for the "Value" column
-                            tableInfos.columnModel.getColumn(1).setCellRenderer(UrlCellRenderer())
 
                             // Add some data
                             defaultTableModel.addRow(arrayOf<Any>("Name", leaf.leafName))
@@ -489,7 +486,42 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             defaultTableModel.addRow(arrayOf<Any>("Rule's description", leaf.ruleDescription))
                             defaultTableModel.addRow(arrayOf<Any>("Location", leaf.location))
                             defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", leaf.githubAlertNumber))
-                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert url", githubAlertUrl))
+                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert url", "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"))
+
+                            tableInfos.setDefaultRenderer(Object::class.java, object : DefaultTableCellRenderer() {
+                                override fun getTableCellRendererComponent(
+                                    table: JTable?,
+                                    value: Any?,
+                                    isSelected: Boolean,
+                                    hasFocus: Boolean,
+                                    row: Int,
+                                    column: Int
+                                ): Component {
+                                    var c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                                    if (row == tableInfos.rowCount - 1 && column == tableInfos.columnCount - 1) {
+                                        val url = tableInfos.getValueAt(row, column).toString()
+                                        c = JLabel("<html><a href='$url'>$url</a></html>")
+                                        c.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                                    }
+                                    return c
+                                }
+                            })
+
+
+                            tableInfos.addMouseListener(object : MouseAdapter() {
+                                override fun mouseClicked(e: MouseEvent) {
+                                    val row = tableInfos.rowAtPoint(e.point)
+                                    val column = tableInfos.columnAtPoint(e.point)
+                                    if (row == tableInfos.rowCount - 1) {
+                                        if (column == tableInfos.columnCount - 1) {
+                                            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                                                Desktop.getDesktop().browse(URI(githubAlertUrl))
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+
                             tableInfos.updateUI()
 
                             steps.read(leaf.steps.joinToString(" ", "<ul>", "</ul>") { step ->
