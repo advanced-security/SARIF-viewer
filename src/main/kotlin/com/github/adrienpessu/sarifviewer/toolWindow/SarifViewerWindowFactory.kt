@@ -55,14 +55,11 @@ import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.*
-import javax.swing.event.HyperlinkEvent
-import javax.swing.event.HyperlinkListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
-import javax.swing.text.html.HTMLEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 
@@ -112,7 +109,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var comboBranchPR = ComboBox(arrayOf(BranchItemComboBox(0, "main", "", "")))
         private val tableInfos = JBTable(DefaultTableModel(arrayOf<Any>("Property", "Value"), 0))
         private val tableSteps = JBTable(DefaultTableModel(arrayOf<Any>("Path"), 0))
-        private val steps = JEditorPane()
+        private val steps = JPanel()
         private val errorField = JLabel("Error message here ")
         private val errorToolbar = JToolBar("", JToolBar.HORIZONTAL)
         private val loadingPanel = JPanel()
@@ -265,16 +262,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun JBPanel<JBPanel<*>>.buildSkeleton() {
-            steps.isEditable = false
-            steps.addHyperlinkListener(object : HyperlinkListener {
-                override fun hyperlinkUpdate(hle: HyperlinkEvent?) {
-                    if (HyperlinkEvent.EventType.ACTIVATED == hle?.eventType) {
-                        hle?.description.toString().split(":").let { location ->
-                            openFile(project, location[0], location[1].toInt())
-                        }
-                    }
-                }
-            })
+            steps.layout = BoxLayout(steps, BoxLayout.Y_AXIS)
+            tableSteps.size = Dimension(steps.width, steps.height)
+            steps.add(tableSteps)
 
             // Add the table to a scroll pane
             val scrollPane = JScrollPane(tableInfos)
@@ -486,7 +476,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             defaultTableModel.addRow(arrayOf<Any>("Rule's description", leaf.ruleDescription))
                             defaultTableModel.addRow(arrayOf<Any>("Location", leaf.location))
                             defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", leaf.githubAlertNumber))
-                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert url", "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"))
+                            defaultTableModel.addRow(
+                                arrayOf<Any>(
+                                    "GitHub alert url",
+                                    "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"
+                                )
+                            )
 
                             tableInfos.setDefaultRenderer(Object::class.java, object : DefaultTableCellRenderer() {
                                 override fun getTableCellRendererComponent(
@@ -497,7 +492,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                     row: Int,
                                     column: Int
                                 ): Component {
-                                    var c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                                    var c = super.getTableCellRendererComponent(
+                                        table,
+                                        value,
+                                        isSelected,
+                                        hasFocus,
+                                        row,
+                                        column
+                                    )
                                     if (row == tableInfos.rowCount - 1 && column == tableInfos.columnCount - 1) {
                                         val url = tableInfos.getValueAt(row, column).toString()
                                         c = JLabel("<html><a href='$url'>$url</a></html>")
@@ -514,7 +516,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                     val column = tableInfos.columnAtPoint(e.point)
                                     if (row == tableInfos.rowCount - 1) {
                                         if (column == tableInfos.columnCount - 1) {
-                                            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                                            if (Desktop.isDesktopSupported() && Desktop.getDesktop()
+                                                    .isSupported(Desktop.Action.BROWSE)
+                                            ) {
                                                 Desktop.getDesktop().browse(URI(githubAlertUrl))
                                             }
                                         }
@@ -524,11 +528,21 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                             tableInfos.updateUI()
 
-                            steps.read(leaf.steps.joinToString(" ", "<ul>", "</ul>") { step ->
-                                "<li><a href=\"$step\">${step.split("/").last()}</a></li>"
-                            }.byteInputStream(Charset.defaultCharset()), HTMLEditorKit::class.java)
+                            tableSteps.clearSelection()
 
-                            steps.contentType = "text/html"
+                            tableSteps.model = DefaultTableModel(arrayOf<Any>("Path"), 0)
+
+                            leaf.steps.forEachIndexed { index, step ->
+                                (tableSteps.model as DefaultTableModel).addRow(arrayOf<Any>("$index $step"))
+                            }
+
+                            tableSteps.addMouseListener(object : MouseAdapter() {
+                                override fun mouseClicked(e: MouseEvent) {
+                                    val row = tableInfos.rowAtPoint(e.point)
+                                    val path = leaf.steps[row].split(":")
+                                    openFile(project, path[0], path[1].toInt())
+                                }
+                            })
 
                             details.isVisible = true
                             openFile(
@@ -579,32 +593,33 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         true // request focus to editor
                     )
                     FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
-                        val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
-                        val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-                        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                        editor.caretModel.moveToOffset(lineStartOffset)
-                        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
-                        editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
+                        if (ruleDescription.isNotEmpty()) {
+                            val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
+                            val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
+                            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                            editor.caretModel.moveToOffset(lineStartOffset)
+                            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+                            editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
 
-                        val messageType = when (level) {
-                            "error" -> MessageType.ERROR
-                            "warning" -> MessageType.WARNING
-                            else -> MessageType.INFO
+                            val messageType = when (level) {
+                                "error" -> MessageType.ERROR
+                                "warning" -> MessageType.WARNING
+                                else -> MessageType.INFO
+                            }
+
+                            // add a balloon on the selection
+                            val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
+                                ruleDescription,
+                                messageType,
+                                null
+                            ).createBalloon()
+                            balloon.show(
+                                RelativePoint(
+                                    editor.contentComponent,
+                                    editor.visualPositionToXY(editor.caretModel.visualPosition)
+                                ), Balloon.Position.above
+                            )
                         }
-
-                        // add a balloon on the selection
-                        val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
-                            ruleDescription,
-                            messageType,
-                            null
-                        ).createBalloon()
-                        balloon.show(
-                            RelativePoint(
-                                editor.contentComponent,
-                                editor.visualPositionToXY(editor.caretModel.visualPosition)
-                            ), Balloon.Position.above
-                        )
-
                     }
 
                 }
@@ -620,7 +635,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
             tableInfos.clearSelection()
             tableInfos.updateUI()
-            steps.text = ""
+            tableSteps.clearSelection()
+            tableSteps.updateUI()
             details.isVisible = false
             errorToolbar.isVisible = false
         }
