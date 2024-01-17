@@ -9,10 +9,13 @@ import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.Root
 import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
+import com.google.common.base.Strings
 import com.intellij.openapi.components.Service
 import com.intellij.util.alsoIfNull
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Comparator
+import java.util.TreeMap
 
 
 @Service(Service.Level.PROJECT)
@@ -28,7 +31,7 @@ class SarifService {
         return ids.map { id ->
             val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id)
             val sarif: SarifSchema210 = objectMapper.readValue(sarifFromGitHub)
-            sarif.alsoIfNull { SarifSchema210()  }
+            sarif.alsoIfNull { SarifSchema210() }
         }
     }
 
@@ -47,7 +50,7 @@ class SarifService {
 
     }
 
-    fun analyseSarif(sarif: SarifSchema210, view: View): HashMap<String, MutableList<Leaf>> {
+    fun analyseSarif(sarif: SarifSchema210, view: View): MutableMap<String, MutableList<Leaf>> {
 
         when (view) {
             View.RULE -> {
@@ -69,6 +72,7 @@ class SarifService {
                 }
                 return map
             }
+
             View.LOCATION -> {
                 val map = HashMap<String, MutableList<Leaf>>()
                 try {
@@ -88,29 +92,58 @@ class SarifService {
                 }
                 return map
             }
+
+            View.ALERT_NUMBER -> {
+                val map = TreeMap<String, MutableList<Leaf>>();
+                try {
+                    sarif.runs.forEach { run ->
+                        run?.results?.forEach { result ->
+                            val element = leaf(result)
+                            val key = if (Strings.isNullOrEmpty(element.githubAlertNumber)) {
+                                "Missing alert number"
+                            } else {
+                                element.githubAlertNumber
+                            }
+                            if (map.containsKey(key)) {
+                                map[key]?.add(element)
+                            } else {
+                                map[key] = mutableListOf(element)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    throw SarifViewerException.INVALID_SARIF
+                }
+                return map.toSortedMap(Comparator.comparingInt { k ->
+                    try {
+                        Integer.valueOf(k)
+                    } catch (e: NumberFormatException) {
+                        Integer.MIN_VALUE
+                    }
+                })
+            }
+
             else -> {
                 throw SarifViewerException.INVALID_VIEW
             }
         }
-
-
     }
 
     private fun leaf(result: Result): Leaf {
         val additionalProperties = result.properties?.additionalProperties ?: mapOf()
         val element = Leaf(
-            leafName = result.message.text ?: "",
-            address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
-            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
-                ?: listOf(),
-            location = result.locations[0].physicalLocation.artifactLocation.uri,
-            ruleId = result.ruleId,
-            ruleName = result.rule?.id ?: "",
-            ruleDescription = result.message.text ?: "",
-            level = result.level.toString(),
-            kind = result.kind.toString(),
-            githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
-            githubAlertUrl = additionalProperties["github/alertUrl"]?.toString() ?: ""
+                leafName = result.message.text ?: "",
+                address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
+                steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
+                        ?: listOf(),
+                location = result.locations[0].physicalLocation.artifactLocation.uri,
+                ruleId = result.ruleId,
+                ruleName = result.rule?.id ?: "",
+                ruleDescription = result.message.text ?: "",
+                level = result.level.toString(),
+                kind = result.kind.toString(),
+                githubAlertNumber = additionalProperties["github/alertNumber"]?.toString() ?: "",
+                githubAlertUrl = additionalProperties["github/alertUrl"]?.toString() ?: ""
         )
         return element
     }
@@ -118,7 +151,7 @@ class SarifService {
     fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): List<*>? {
         val head = "${repositoryFullName.split("/")[0]}:$branchName"
         val connection = URL("${github.apiBase}/repos/$repositoryFullName/pulls?state=open&head=$head")
-            .openConnection() as HttpURLConnection
+                .openConnection() as HttpURLConnection
 
         connection.apply {
             requestMethod = "GET"
@@ -139,14 +172,14 @@ class SarifService {
     }
 
     private fun getAnalysisFromGitHub(
-        github: GitHubInstance,
-        repositoryFullName: String,
-        branchName: String = "main"
+            github: GitHubInstance,
+            repositoryFullName: String,
+            branchName: String = "main"
     ): String {
 
         val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
         val connection = URL(s)
-            .openConnection() as HttpURLConnection
+                .openConnection() as HttpURLConnection
 
         connection.apply {
             requestMethod = "GET"
@@ -189,7 +222,7 @@ class SarifService {
 
     private fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, analysisId: Int): String {
         val connection = URL("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses/$analysisId")
-            .openConnection() as HttpURLConnection
+                .openConnection() as HttpURLConnection
 
         connection.apply {
             requestMethod = "GET"
