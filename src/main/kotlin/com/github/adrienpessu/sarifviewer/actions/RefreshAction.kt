@@ -7,9 +7,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 
 class RefreshAction : AnAction("Refresh from GitHub") {
     var myToolWindow: SarifViewerWindowFactory.MyToolWindow? = null
-        set(value) {
-            field = value
-        }
 
     override fun actionPerformed(e: AnActionEvent) {
         val gitHubInstance = myToolWindow?.github?: throw SarifViewerException.INVALID_REPOSITORY

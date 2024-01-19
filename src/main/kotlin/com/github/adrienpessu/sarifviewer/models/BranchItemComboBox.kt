@@ -8,10 +8,10 @@ data class BranchItemComboBox(
     val commit: String = "",
 ) {
     override fun toString(): String {
-        if (prNumber == 0) {
-            return head
+        return if (prNumber == 0) {
+            head
         } else {
-            return "pr$prNumber ($prTitle)"
+            "pr$prNumber ($prTitle)"
         }
     }
 }

@@ -19,21 +19,16 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.editor.ScrollType
-import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.ui.MessageType
-import com.intellij.openapi.ui.popup.Balloon
-import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ScrollPaneFactory
-import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
@@ -551,6 +546,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                 leaf.address.split(":")[1].toInt(),
                                 0,
                                 leaf.level,
+                                leaf.ruleId,
                                 leaf.ruleDescription
                             )
 
@@ -578,8 +574,15 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             lineNumber: Int,
             columnNumber: Int = 0,
             level: String = "",
-            ruleDescription: String = ""
+            rule: String = "",
+            description: String = ""
         ) {
+
+            val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+            val inlayModel = editor.inlayModel
+
+            inlayModel.getBlockElementsInRange(0, editor.document.textLength).filter { it.renderer is MyCustomInlayRenderer }
+                .forEach { it.dispose() }
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
                 ?.let { virtualFile ->
@@ -592,36 +595,21 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         ),
                         true // request focus to editor
                     )
-                    FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
-                        if (ruleDescription.isNotEmpty()) {
-                            val lineStartOffset = document.getLineStartOffset(lineNumber - 1)
-                            val lineEndOffset = document.getLineEndOffset(lineNumber - 1)
-                            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                            editor.caretModel.moveToOffset(lineStartOffset)
-                            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
-                            editor.selectionModel.setSelection(lineStartOffset, lineEndOffset)
+                    val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                    val inlayModel = editor.inlayModel
 
-                            val messageType = when (level) {
-                                "error" -> MessageType.ERROR
-                                "warning" -> MessageType.WARNING
-                                else -> MessageType.INFO
-                            }
+                    val offset = editor.document.getLineStartOffset(lineNumber - 1)
 
-                            // add a balloon on the selection
-                            val balloon = JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(
-                                ruleDescription,
-                                messageType,
-                                null
-                            ).createBalloon()
-                            balloon.show(
-                                RelativePoint(
-                                    editor.contentComponent,
-                                    editor.visualPositionToXY(editor.caretModel.visualPosition)
-                                ), Balloon.Position.above
-                            )
-                        }
+                    val icon = when (level) {
+                        "error" -> "🛑"
+                        "warning" -> "⚠️"
+                        "note" -> "📝"
+                        else -> ""
                     }
-
+                    val description = "$icon $rule: $description"
+                    if (description.isNotEmpty()) {
+                        inlayModel.addBlockElement(offset, true, true, 1, MyCustomInlayRenderer(description))
+                    }
                 }
         }
 

@@ -32,9 +32,9 @@ class Settings : Configurable, Configurable.NoScroll, Disposable {
 
     override fun isModified(): Boolean =
             listOf(
-                    !mySettingsComponent!!.getGhTokenText().equals(SettingsState.instance.state.pat),
-                    !mySettingsComponent!!.getGhesHostnameText().equals(SettingsState.instance.state.ghesHostname),
-                    !mySettingsComponent!!.getGhesTokenText().equals(SettingsState.instance.state.ghesPat),
+                mySettingsComponent!!.getGhTokenText() != SettingsState.instance.state.pat,
+                mySettingsComponent!!.getGhesHostnameText() != SettingsState.instance.state.ghesHostname,
+                mySettingsComponent!!.getGhesTokenText() != SettingsState.instance.state.ghesPat,
             ).any()
 
     override fun apply() {

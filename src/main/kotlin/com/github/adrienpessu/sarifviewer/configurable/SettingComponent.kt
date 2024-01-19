@@ -34,26 +34,26 @@ class SettingComponent {
     }
 
     fun getGhTokenText(): String {
-        return ghTokenText.getText()
+        return ghTokenText.text
     }
 
     fun setGhTokenText(newText: String) {
-        ghTokenText.setText(newText)
+        ghTokenText.text = newText
     }
 
     fun getGhesHostnameText(): String {
-        return ghesHostnameText.getText()
+        return ghesHostnameText.text
     }
 
     fun getGhesTokenText(): String {
-        return ghesTokenText.getText()
+        return ghesTokenText.text
     }
 
     fun setGhesHostnameText(newText: String) {
-        ghesHostnameText.setText(newText)
+        ghesHostnameText.text = newText
     }
 
     fun setGhesTokenText(newText: String) {
-        ghesTokenText.setText(newText)
+        ghesTokenText.text = newText
     }
 }
