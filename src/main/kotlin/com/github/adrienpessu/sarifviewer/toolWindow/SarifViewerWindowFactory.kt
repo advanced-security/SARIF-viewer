@@ -19,7 +19,10 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.ScrollType
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
@@ -30,6 +33,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
@@ -155,8 +159,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun JBPanel<JBPanel<*>>.loadDataAndUI(
-            repository: GitRepository,
-            selectedCombo: BranchItemComboBox? = null
+                repository: GitRepository,
+                selectedCombo: BranchItemComboBox? = null
         ) {
             currentBranch = repository.currentBranch
 
@@ -218,24 +222,24 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun emptyNode(
-            map: MutableMap<String, MutableList<Leaf>>,
-            repositoryFullName: String?
+                map: MutableMap<String, MutableList<Leaf>>,
+                repositoryFullName: String?
         ) {
             val element = Leaf(
-                leafName = "",
-                address = "",
-                steps = listOf(),
-                location = "",
-                ruleId = "",
-                ruleName = "",
-                ruleDescription = "",
-                level = "",
-                kind = "",
-                githubAlertNumber = "",
-                githubAlertUrl = "",
+                    leafName = "",
+                    address = "",
+                    steps = listOf(),
+                    location = "",
+                    ruleId = "",
+                    ruleName = "",
+                    ruleDescription = "",
+                    level = "",
+                    kind = "",
+                    githubAlertNumber = "",
+                    githubAlertUrl = "",
             )
             map["No SARIF file found for the repository $repositoryFullName and ref $sarifGitHubRef"] =
-                listOf(element).toMutableList()
+                    listOf(element).toMutableList()
         }
 
         private fun toggleLoading(forcedValue: Boolean? = null) {
@@ -249,9 +253,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             errorField.text = message
 
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("SARIF viewer")
-                .createNotification(message, NotificationType.ERROR)
-                .notify(project)
+                    .getNotificationGroup("SARIF viewer")
+                    .createNotification(message, NotificationType.ERROR)
+                    .notify(project)
 
             thisLogger().info(message)
         }
@@ -262,10 +266,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             steps.add(tableSteps)
 
             // Add the table to a scroll pane
-            val scrollPane = JScrollPane(tableInfos)
+            val scrollPane = JBScrollPane(tableInfos)
+            val stepsScrollPane = JBScrollPane(steps)
 
             details.addTab("Infos", scrollPane)
-            details.addTab("Steps", steps)
+            details.addTab("Steps", stepsScrollPane)
 
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
 
@@ -329,7 +334,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             comboBranchPR.addActionListener(ActionListener() { event ->
                 val comboBox = event.source as JComboBox<*>
                 if (event.actionCommand == "comboBoxChanged" && comboBox.selectedItem != null
-                    && !disableComboBoxEvent && !DumbService.isDumb(project)
+                        && !disableComboBoxEvent && !DumbService.isDumb(project)
                 ) {
                     val selectedOption = comboBox.selectedItem as BranchItemComboBox
                     sarifGitHubRef = if (selectedOption.prNumber != 0) {
@@ -371,7 +376,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun buildContent(
-            map: Map<String, MutableList<Leaf>>
+                map: Map<String, MutableList<Leaf>>
         ) {
             treeBuilding(map)
         }
@@ -391,9 +396,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         fun refresh(
-            currentBranch: GitLocalBranch,
-            github: GitHubInstance,
-            repositoryFullName: String
+                currentBranch: GitLocalBranch,
+                github: GitHubInstance,
+                repositoryFullName: String
         ) {
             localMode = false
             val worker = object : SwingWorker<Unit, Unit>() {
@@ -449,19 +454,19 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             }
 
                             val githubAlertUrl = leaf.githubAlertUrl
-                                .replace("api.", "")
-                                .replace("api/v3/", "")
-                                .replace("repos/", "")
-                                .replace("code-scanning/alerts", "security/code-scanning")
+                                    .replace("api.", "")
+                                    .replace("api/v3/", "")
+                                    .replace("repos/", "")
+                                    .replace("code-scanning/alerts", "security/code-scanning")
 
                             tableInfos.clearSelection()
                             // Create a table model with "Property" and "Value" columns
                             val defaultTableModel: DefaultTableModel =
-                                object : DefaultTableModel(arrayOf<Any>("Property", "Value"), 0) {
-                                    override fun isCellEditable(row: Int, column: Int): Boolean {
-                                        return false
+                                    object : DefaultTableModel(arrayOf<Any>("Property", "Value"), 0) {
+                                        override fun isCellEditable(row: Int, column: Int): Boolean {
+                                            return false
+                                        }
                                     }
-                                }
                             tableInfos.model = defaultTableModel
 
                             // Add some data
@@ -472,28 +477,28 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             defaultTableModel.addRow(arrayOf<Any>("Location", leaf.location))
                             defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", leaf.githubAlertNumber))
                             defaultTableModel.addRow(
-                                arrayOf<Any>(
-                                    "GitHub alert url",
-                                    "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"
-                                )
+                                    arrayOf<Any>(
+                                            "GitHub alert url",
+                                            "<a href=\"$githubAlertUrl\">$githubAlertUrl</a"
+                                    )
                             )
 
                             tableInfos.setDefaultRenderer(Object::class.java, object : DefaultTableCellRenderer() {
                                 override fun getTableCellRendererComponent(
-                                    table: JTable?,
-                                    value: Any?,
-                                    isSelected: Boolean,
-                                    hasFocus: Boolean,
-                                    row: Int,
-                                    column: Int
+                                        table: JTable?,
+                                        value: Any?,
+                                        isSelected: Boolean,
+                                        hasFocus: Boolean,
+                                        row: Int,
+                                        column: Int
                                 ): Component {
                                     var c = super.getTableCellRendererComponent(
-                                        table,
-                                        value,
-                                        isSelected,
-                                        hasFocus,
-                                        row,
-                                        column
+                                            table,
+                                            value,
+                                            isSelected,
+                                            hasFocus,
+                                            row,
+                                            column
                                     )
                                     if (row == tableInfos.rowCount - 1 && column == tableInfos.columnCount - 1) {
                                         val url = tableInfos.getValueAt(row, column).toString()
@@ -512,7 +517,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                     if (row == tableInfos.rowCount - 1) {
                                         if (column == tableInfos.columnCount - 1) {
                                             if (Desktop.isDesktopSupported() && Desktop.getDesktop()
-                                                    .isSupported(Desktop.Action.BROWSE)
+                                                            .isSupported(Desktop.Action.BROWSE)
                                             ) {
                                                 Desktop.getDesktop().browse(URI(githubAlertUrl))
                                             }
@@ -533,21 +538,26 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                             tableSteps.addMouseListener(object : MouseAdapter() {
                                 override fun mouseClicked(e: MouseEvent) {
-                                    val row = tableInfos.rowAtPoint(e.point)
+                                    val row = tableSteps.rowAtPoint(e.point)
                                     val path = leaf.steps[row].split(":")
-                                    openFile(project, path[0], path[1].toInt())
+                                    navigateEditor(project,
+                                            path[0],
+                                            path[1].toInt(),
+                                            columnNumber = path[2].toInt(),
+                                            endLineNumber = path[3].toInt(),
+                                            endColumnNumber = path[4].toInt())
                                 }
                             })
 
                             details.isVisible = true
                             openFile(
-                                project,
-                                leaf.location,
-                                leaf.address.split(":")[1].toInt(),
-                                0,
-                                leaf.level,
-                                leaf.ruleId,
-                                leaf.ruleDescription
+                                    project,
+                                    leaf.location,
+                                    leaf.address.split(":")[1].toInt(),
+                                    0,
+                                    leaf.level,
+                                    leaf.ruleId,
+                                    leaf.ruleDescription
                             )
 
                             splitPane.setDividerLocation(0.5)
@@ -569,48 +579,96 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun openFile(
-            project: Project,
-            path: String,
-            lineNumber: Int,
-            columnNumber: Int = 0,
-            level: String = "",
-            rule: String = "",
-            description: String = ""
+                project: Project,
+                path: String,
+                lineNumber: Int,
+                columnNumber: Int = 0,
+                level: String = "",
+                rule: String = "",
+                description: String = ""
         ) {
 
             val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
             val inlayModel = editor.inlayModel
 
             inlayModel.getBlockElementsInRange(0, editor.document.textLength).filter { it.renderer is MyCustomInlayRenderer }
-                .forEach { it.dispose() }
+                    .forEach { it.dispose() }
 
             VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
-                ?.let { virtualFile ->
-                    FileEditorManager.getInstance(project).openTextEditor(
-                        OpenFileDescriptor(
-                            project,
-                            virtualFile,
-                            lineNumber - 1,
-                            columnNumber
-                        ),
-                        true // request focus to editor
-                    )
-                    val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                    val inlayModel = editor.inlayModel
+                    ?.let { virtualFile ->
+                        FileEditorManager.getInstance(project).openTextEditor(
+                                OpenFileDescriptor(
+                                        project,
+                                        virtualFile,
+                                        lineNumber - 1,
+                                        columnNumber
+                                ),
+                                true // request focus to editor
+                        )
+                        val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                        val inlayModel = editor.inlayModel
 
-                    val offset = editor.document.getLineStartOffset(lineNumber - 1)
+                        val offset = editor.document.getLineStartOffset(lineNumber - 1)
 
-                    val icon = when (level) {
-                        "error" -> "🛑"
-                        "warning" -> "⚠️"
-                        "note" -> "📝"
-                        else -> ""
+                        val icon = when (level) {
+                            "error" -> "🛑"
+                            "warning" -> "⚠️"
+                            "note" -> "📝"
+                            else -> ""
+                        }
+                        val description = "$icon $rule: $description"
+                        if (description.isNotEmpty()) {
+                            inlayModel.addBlockElement(offset, true, true, 1, MyCustomInlayRenderer(description))
+                        }
                     }
-                    val description = "$icon $rule: $description"
-                    if (description.isNotEmpty()) {
-                        inlayModel.addBlockElement(offset, true, true, 1, MyCustomInlayRenderer(description))
-                    }
+        }
+
+        private fun getOffsetsFromLocation(document: Document,
+                                           startLine: Int, startColumn: Int,
+                                           endLine: Int = -1, endColumnNumber: Int = -1): Pair<Int, Int> {
+            val startOffset = document.getLineStartOffset(startLine - 1) + startColumn - 1
+            val endOffset: Int = if (endLine == -1) {
+                document.getLineEndOffset(startLine - 1)
+            } else {
+                if (endColumnNumber == -1) {
+                    document.getLineEndOffset(endLine - 1)
+                } else {
+                    document.getLineStartOffset(endLine - 1) + endColumnNumber - 1
                 }
+            }
+            return Pair(startOffset, endOffset)
+        }
+
+        private fun navigateEditor(
+                project: Project,
+                path: String,
+                lineNumber: Int,
+                columnNumber: Int = 1,
+                endLineNumber: Int = -1,
+                endColumnNumber: Int = -1,
+        ) {
+            VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
+                    ?.let { virtualFile ->
+                        FileEditorManager.getInstance(project).openTextEditor(
+                                OpenFileDescriptor(
+                                        project,
+                                        virtualFile,
+                                        lineNumber - 1,
+                                        columnNumber - 1
+                                ),
+                                true // request focus to editor
+                        )
+                        FileDocumentManager.getInstance().getDocument(virtualFile)?.let { document ->
+                            val offsets = getOffsetsFromLocation(document,
+                                    lineNumber, columnNumber,
+                                    endLineNumber, endColumnNumber)
+                            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                            editor.caretModel.moveToOffset(offsets.first)
+                            editor.scrollingModel.scrollToCaret(ScrollType.MAKE_VISIBLE)
+                            editor.selectionModel.setSelection(offsets.first, offsets.second)
+
+                        }
+                    }
         }
 
         private fun clearJSplitPane() {
@@ -630,9 +688,9 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun extractSarif(
-            github: GitHubInstance,
-            repositoryFullName: String,
-            base: String? = null
+                github: GitHubInstance,
+                repositoryFullName: String,
+                base: String? = null
         ): MutableMap<String, MutableList<Leaf>> {
             val sarifs = service.getSarifFromGitHub(github, repositoryFullName, sarifGitHubRef).filterNotNull()
             var map: MutableMap<String, MutableList<Leaf>> = HashMap()
@@ -645,16 +703,16 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                     for (currentResult in results) {
                         if (mainResults.none {
-                                it.ruleId == currentResult.ruleId
-                                        && ("${currentResult.locations[0].physicalLocation.artifactLocation.uri}:${currentResult.locations[0].physicalLocation.region.startLine}" == "${it.locations[0].physicalLocation.artifactLocation.uri}:${it.locations[0].physicalLocation.region.startLine}")
-                            }) {
+                                    it.ruleId == currentResult.ruleId
+                                            && ("${currentResult.locations[0].physicalLocation.artifactLocation.uri}:${currentResult.locations[0].physicalLocation.region.startLine}" == "${it.locations[0].physicalLocation.artifactLocation.uri}:${it.locations[0].physicalLocation.region.startLine}")
+                                }) {
                             resultsToDisplay.add(currentResult)
                         }
                     }
                     map = service.analyseResult(resultsToDisplay)
                 } else {
                     map = sarifs.map { service.analyseSarif(it, currentView) }
-                        .reduce { acc, item -> acc.apply { putAll(item) } }
+                            .reduce { acc, item -> acc.apply { putAll(item) } }
                 }
             }
 
@@ -662,7 +720,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun extractSarifFromFile(
-            file: File
+                file: File
         ): Map<String, MutableList<Leaf>> {
             // file to String
             val sarifString = file.readText(Charset.defaultCharset())
@@ -677,26 +735,26 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         }
 
         private fun populateCombo(
-            currentBranch: GitLocalBranch?,
-            github: GitHubInstance,
-            repositoryFullName: String
+                currentBranch: GitLocalBranch?,
+                github: GitHubInstance,
+                repositoryFullName: String
         ) {
             disableComboBoxEvent = true
             comboBranchPR.removeAllItems()
             comboBranchPR.addItem(BranchItemComboBox(0, currentBranch?.name ?: "main", "", ""))
             val pullRequests =
-                service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
+                    service.getPullRequests(github, repositoryFullName, sarifGitHubRef.split('/', limit = 3).last())
             if (pullRequests?.isNotEmpty() == true) {
                 pullRequests.forEach {
                     val currentPr = it as LinkedHashMap<*, *>
                     comboBranchPR.addItem(
-                        BranchItemComboBox(
-                            currentPr["number"] as Int,
-                            (currentPr["base"] as LinkedHashMap<String, String>)["ref"] ?: "",
-                            (currentPr["head"] as LinkedHashMap<String, String>)["ref"] ?: "",
-                            currentPr["title"].toString(),
-                            (currentPr["head"] as LinkedHashMap<String, String>)["commit_sha"] ?: ""
-                        )
+                            BranchItemComboBox(
+                                    currentPr["number"] as Int,
+                                    (currentPr["base"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                                    (currentPr["head"] as LinkedHashMap<String, String>)["ref"] ?: "",
+                                    currentPr["title"].toString(),
+                                    (currentPr["head"] as LinkedHashMap<String, String>)["commit_sha"] ?: ""
+                            )
                     )
                 }
             }
