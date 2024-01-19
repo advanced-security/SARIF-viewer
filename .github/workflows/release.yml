@@ -24,6 +24,12 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      # Get the current tag and replace the version in gradle.properties
+      - name: Set Version
+        run: |
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed -e 's/^v//' -e 's/-.*//')
+          sed -i "s/^version=.*/version=$VERSION/" gradle.properties
+
       # Set up Java environment for the next steps
       - name: Setup Java
         uses: actions/setup-java@v4
