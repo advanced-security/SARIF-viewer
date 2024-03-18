@@ -9,7 +9,8 @@ data class View(
     companion object {
         val RULE = View("rules", "View by rules")
         val LOCATION = View("location", "View by location")
-        val views = arrayOf(RULE, LOCATION)
+        val ALERT_NUMBER = View("alert num", "View by GHAS alert number")
+        val views = arrayOf(RULE, LOCATION, ALERT_NUMBER)
     }
 }
 
