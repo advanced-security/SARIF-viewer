@@ -16,10 +16,10 @@ class SettingComponent {
 
     init {
         myMainPanel = FormBuilder.createFormBuilder()
-                .addLabeledComponent(JBLabel("GitHub PAT "), ghTokenText, 1, false)
+                .addLabeledComponent(JBLabel("GitHub.com PAT "), ghTokenText, 1, false)
                 .addSeparator()
-                .addLabeledComponent(JBLabel("GHE Hostname"), ghesHostnameText, 2, false)
-                .addLabeledComponent(JBLabel("GHE Token"), ghesTokenText, 3, false)
+                .addLabeledComponent(JBLabel("GHES Hostname"), ghesHostnameText, 2, false)
+                .addLabeledComponent(JBLabel("GHES PAT"), ghesTokenText, 3, false)
                 .addComponentFillVertically(JPanel(), 0)
                 .getPanel()
     }
