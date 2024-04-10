@@ -13,8 +13,10 @@ import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.services.SarifService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
+import com.intellij.notification.Notification
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.components.service
@@ -113,6 +115,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var disableComboBoxEvent = false
         private var currentView = View.RULE
         private var cacheSarif: SarifSchema210? = null
+        private var currentLeaf: Leaf? = null
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
 
@@ -442,13 +445,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     if (e != null && e.isAddedPath) {
                         val leaves = map[e.path.parentPath.lastPathComponent.toString().split(" ").first()]
                         if (!leaves.isNullOrEmpty()) {
-                            val leaf = try {
+                            currentLeaf = try {
                                 leaves.first { it.address == ((e.path.lastPathComponent as DefaultMutableTreeNode).userObject as Leaf).address }
                             } catch (e: Exception) {
                                 leaves.first()
                             }
 
-                            val githubAlertUrl = leaf.githubAlertUrl
+                            val githubAlertUrl = currentLeaf!!.githubAlertUrl
                                 .replace("api.", "")
                                 .replace("api/v3/", "")
                                 .replace("repos/", "")
@@ -465,12 +468,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             tableInfos.model = defaultTableModel
 
                             // Add some data
-                            defaultTableModel.addRow(arrayOf<Any>("Name", leaf.leafName))
-                            defaultTableModel.addRow(arrayOf<Any>("Level", leaf.level))
-                            defaultTableModel.addRow(arrayOf<Any>("Rule's name", leaf.ruleName))
-                            defaultTableModel.addRow(arrayOf<Any>("Rule's description", leaf.ruleDescription))
-                            defaultTableModel.addRow(arrayOf<Any>("Location", leaf.location))
-                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", leaf.githubAlertNumber))
+                            defaultTableModel.addRow(arrayOf<Any>("Name", currentLeaf!!.leafName))
+                            defaultTableModel.addRow(arrayOf<Any>("Level", currentLeaf!!.level))
+                            defaultTableModel.addRow(arrayOf<Any>("Rule's name", currentLeaf!!.ruleName))
+                            defaultTableModel.addRow(arrayOf<Any>("Rule's description", currentLeaf!!.ruleDescription))
+                            defaultTableModel.addRow(arrayOf<Any>("Location", currentLeaf!!.location))
+                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", currentLeaf!!.githubAlertNumber))
                             defaultTableModel.addRow(
                                 arrayOf<Any>(
                                     "GitHub alert url",
@@ -527,14 +530,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
                             tableSteps.model = DefaultTableModel(arrayOf<Any>("Path"), 0)
 
-                            leaf.steps.forEachIndexed { index, step ->
+                            currentLeaf!!.steps.forEachIndexed { index, step ->
                                 (tableSteps.model as DefaultTableModel).addRow(arrayOf<Any>("$index $step"))
                             }
 
                             tableSteps.addMouseListener(object : MouseAdapter() {
                                 override fun mouseClicked(e: MouseEvent) {
                                     val row = tableInfos.rowAtPoint(e.point)
-                                    val path = leaf.steps[row].split(":")
+                                    val path = currentLeaf!!.steps[row].split(":")
                                     openFile(project, path[0], path[1].toInt())
                                 }
                             })
@@ -542,12 +545,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             details.isVisible = true
                             openFile(
                                 project,
-                                leaf.location,
-                                leaf.address.split(":")[1].toInt(),
+                                currentLeaf!!.location,
+                                currentLeaf!!.address.split(":")[1].toInt(),
                                 0,
-                                leaf.level,
-                                leaf.ruleId,
-                                leaf.ruleDescription
+                                currentLeaf!!.level,
+                                currentLeaf!!.ruleId,
+                                currentLeaf!!.ruleDescription
                             )
 
                             splitPane.setDividerLocation(0.5)
@@ -584,33 +587,43 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             inlayModel.getBlockElementsInRange(0, editor.document.textLength).filter { it.renderer is MyCustomInlayRenderer }
                 .forEach { it.dispose() }
 
-            VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
-                ?.let { virtualFile ->
-                    FileEditorManager.getInstance(project).openTextEditor(
-                        OpenFileDescriptor(
-                            project,
-                            virtualFile,
-                            lineNumber - 1,
-                            columnNumber
-                        ),
-                        true // request focus to editor
-                    )
-                    val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                    val inlayModel = editor.inlayModel
+            val virtualFile =
+                VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
+            if (virtualFile != null) {
+                FileEditorManager.getInstance(project).openTextEditor(
+                    OpenFileDescriptor(
+                        project,
+                        virtualFile,
+                        lineNumber - 1,
+                        columnNumber
+                    ),
+                    true // request focus to editor
+                )
+                val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
+                val inlayModel = editor.inlayModel
 
-                    val offset = editor.document.getLineStartOffset(lineNumber - 1)
+                val offset = editor.document.getLineStartOffset(lineNumber - 1)
 
-                    val icon = when (level) {
-                        "error" -> "🛑"
-                        "warning" -> "⚠️"
-                        "note" -> "📝"
-                        else -> ""
-                    }
-                    val description = "$icon $rule: $description"
-                    if (description.isNotEmpty()) {
-                        inlayModel.addBlockElement(offset, true, true, 1, MyCustomInlayRenderer(description))
-                    }
+                val icon = when (level) {
+                    "error" -> "🛑"
+                    "warning" -> "⚠️"
+                    "note" -> "📝"
+                    else -> ""
                 }
+                val description = "$icon $rule: $description"
+                if (description.isNotEmpty()) {
+                    inlayModel.addBlockElement(offset, true, true, 1, MyCustomInlayRenderer(description))
+                }
+            } else {
+                // display error message
+                Notifications.Bus.notify(
+                    Notification(
+                    "Sarif viewer",
+                    "File not found",
+                    "Can't find the file ${project.basePath}/$path",
+                    NotificationType.WARNING
+                ), project)
+            }
         }
 
         private fun clearJSplitPane() {
