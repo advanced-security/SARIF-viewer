@@ -538,16 +538,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                                 override fun mouseClicked(e: MouseEvent) {
                                     val row = tableInfos.rowAtPoint(e.point)
                                     val path = currentLeaf!!.steps[row].split(":")
-                                    openFile(project, path[0], path[1].toInt())
+                                    openFile(project, path[0], path[1].toInt(), path[2].toInt())
                                 }
                             })
 
                             details.isVisible = true
+                            val addr = currentLeaf!!.address.split(":")
                             openFile(
                                 project,
                                 currentLeaf!!.location,
-                                currentLeaf!!.address.split(":")[1].toInt(),
-                                0,
+                                addr[1].toInt(),
+                                addr[2].toInt(),
                                 currentLeaf!!.level,
                                 currentLeaf!!.ruleId,
                                 currentLeaf!!.ruleDescription
@@ -595,7 +596,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                         project,
                         virtualFile,
                         lineNumber - 1,
-                        columnNumber
+                        columnNumber - 1
                     ),
                     true // request focus to editor
                 )

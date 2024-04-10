@@ -100,8 +100,8 @@ class SarifService {
         val additionalProperties = result.properties?.additionalProperties ?: mapOf()
         val element = Leaf(
             leafName = result.message.text ?: "",
-            address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine}",
-            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}" }
+            address = "${result.locations[0].physicalLocation.artifactLocation.uri}:${result.locations[0].physicalLocation.region.startLine ?: 0}:${result.locations[0].physicalLocation.region.startColumn ?: 0}",
+            steps = result.codeFlows?.get(0)?.threadFlows?.get(0)?.locations?.map { "${it.location.physicalLocation.artifactLocation.uri}:${it.location.physicalLocation.region.startLine}:${it.location.physicalLocation.region.startColumn}" }
                 ?: listOf(),
             location = result.locations[0].physicalLocation.artifactLocation.uri,
             ruleId = result.ruleId,
