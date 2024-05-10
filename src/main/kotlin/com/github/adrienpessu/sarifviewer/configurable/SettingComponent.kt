@@ -80,7 +80,7 @@ class SettingComponent {
     }
 
     fun getGhTokenText(): String {
-        return if (toggleButton.isSelected) {
+        return if (isGhTokenVisible) {
             ghTokenTextField.text
         } else {
             ghTokenPasswordField.text
@@ -88,11 +88,8 @@ class SettingComponent {
     }
 
     fun setGhTokenText(newText: String) {
-        if (toggleButton.isSelected) {
-            ghTokenTextField.text = newText
-        } else {
-            ghTokenPasswordField.text = newText
-        }
+        ghTokenTextField.text = newText
+        ghTokenPasswordField.text = newText
     }
 
     fun getGhesHostnameText(): String {
@@ -100,7 +97,7 @@ class SettingComponent {
     }
 
     fun getGhesTokenText(): String {
-        return if (toggleButton.isSelected) {
+        return if (isGhTokenVisible) {
             ghesTokenTextField.text
         } else {
             ghesTokenPasswordField.text
@@ -112,11 +109,8 @@ class SettingComponent {
     }
 
     fun setGhesTokenText(newText: String) {
-        if (toggleButton.isSelected) {
-            ghesTokenTextField.text = newText
-        } else {
-            ghesTokenPasswordField.text = newText
-        }
+        ghesTokenTextField.text = newText
+        ghesTokenPasswordField.text = newText
     }
 }
 
