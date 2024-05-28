@@ -25,7 +25,7 @@ repositories {
 dependencies {
 //    implementation(libs.annotations)
     implementation("com.contrastsecurity:java-sarif:2.0")
-    testImplementation("org.assertj:assertj-core:3.25.3")
+    testImplementation("org.assertj:assertj-core:3.26.0")
 }
 
 // Set the JVM language level used to build the project. Use Java 11 for 2020.3+, and Java 17 for 2022.2+.
