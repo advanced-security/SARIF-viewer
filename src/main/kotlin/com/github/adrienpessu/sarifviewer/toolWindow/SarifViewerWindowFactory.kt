@@ -35,6 +35,7 @@ import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
+import com.jetbrains.rd.util.printlnError
 import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
@@ -473,7 +474,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             defaultTableModel.addRow(arrayOf<Any>("Rule's name", currentLeaf!!.ruleName))
                             defaultTableModel.addRow(arrayOf<Any>("Rule's description", currentLeaf!!.ruleDescription))
                             defaultTableModel.addRow(arrayOf<Any>("Location", currentLeaf!!.location))
-                            defaultTableModel.addRow(arrayOf<Any>("GitHub alert number", currentLeaf!!.githubAlertNumber))
+                            defaultTableModel.addRow(
+                                arrayOf<Any>(
+                                    "GitHub alert number",
+                                    currentLeaf!!.githubAlertNumber
+                                )
+                            )
                             defaultTableModel.addRow(
                                 arrayOf<Any>(
                                     "GitHub alert url",
@@ -537,8 +543,11 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                             tableSteps.addMouseListener(object : MouseAdapter() {
                                 override fun mouseClicked(e: MouseEvent) {
                                     val row = tableInfos.rowAtPoint(e.point)
-                                    val path = currentLeaf!!.steps[row].split(":")
-                                    openFile(project, path[0], path[1].toInt(), path[2].toInt())
+                                    // When the row can't be found, the method returns -1
+                                    if (row != -1) {
+                                        val path = currentLeaf!!.steps[row].split(":")
+                                        openFile(project, path[0], path[1].toInt(), path[2].toInt())
+                                    }
                                 }
                             })
 
@@ -585,7 +594,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
             val inlayModel = editor.inlayModel
 
-            inlayModel.getBlockElementsInRange(0, editor.document.textLength).filter { it.renderer is MyCustomInlayRenderer }
+            inlayModel.getBlockElementsInRange(0, editor.document.textLength)
+                .filter { it.renderer is MyCustomInlayRenderer }
                 .forEach { it.dispose() }
 
             val virtualFile =
@@ -619,11 +629,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 // display error message
                 Notifications.Bus.notify(
                     Notification(
-                    "Sarif viewer",
-                    "File not found",
-                    "Can't find the file ${project.basePath}/$path",
-                    NotificationType.WARNING
-                ), project)
+                        "Sarif viewer",
+                        "File not found",
+                        "Can't find the file ${project.basePath}/$path",
+                        NotificationType.WARNING
+                    ), project
+                )
             }
         }
 
