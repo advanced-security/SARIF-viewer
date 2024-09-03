@@ -12,7 +12,7 @@ import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.openapi.components.Service
 import com.intellij.util.alsoIfNull
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 
 @Service(Service.Level.PROJECT)
@@ -117,7 +117,8 @@ class SarifService {
 
     fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): List<*>? {
         val head = "${repositoryFullName.split("/")[0]}:$branchName"
-        val connection = URL("${github.apiBase}/repos/$repositoryFullName/pulls?state=open&head=$head")
+        val connection = URI("${github.apiBase}/repos/$repositoryFullName/pulls?state=open&head=$head")
+            .toURL()
             .openConnection() as HttpURLConnection
 
         connection.apply {
@@ -145,7 +146,8 @@ class SarifService {
     ): String {
 
         val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
-        val connection = URL(s)
+        val connection = URI(s)
+            .toURL()
             .openConnection() as HttpURLConnection
 
         connection.apply {
@@ -188,7 +190,8 @@ class SarifService {
     }
 
     private fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, analysisId: Int): String {
-        val connection = URL("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses/$analysisId")
+        val connection = URI("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses/$analysisId")
+            .toURL()
             .openConnection() as HttpURLConnection
 
         connection.apply {

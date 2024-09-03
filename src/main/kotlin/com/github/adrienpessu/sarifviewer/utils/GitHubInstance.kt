@@ -1,7 +1,7 @@
 package com.github.adrienpessu.sarifviewer.utils
 
 import org.jetbrains.annotations.VisibleForTesting
-import java.net.URL
+import java.net.URI
 
 data class GitHubInstance(val hostname: String, val apiBase: String = "https://$hostname/api/v3") {
     // Keep this out of the constructor so that it doesn't accidentally end up in a toString() output
@@ -9,7 +9,7 @@ data class GitHubInstance(val hostname: String, val apiBase: String = "https://$
 
     fun extractRepoNwo(remoteUrl: String?): String? {
         if (remoteUrl?.startsWith("https") == true) {
-            return URL(remoteUrl).path.replace(Regex("^/"), "").replace(Regex(".git$"), "")
+            return URI(remoteUrl).path.replace(Regex("^/"), "").replace(Regex(".git$"), "")
         } else if (remoteUrl?.startsWith("git@") == true) {
             return remoteUrl.replace(Regex("^git@$hostname:"), "").replace(Regex(".git$"), "")
         }
@@ -21,12 +21,13 @@ data class GitHubInstance(val hostname: String, val apiBase: String = "https://$
 
         @VisibleForTesting
         fun extractHostname(remoteUrl: String?): String? {
-            if (remoteUrl?.startsWith("https") == true) {
-                return URL(remoteUrl).host
+            return if (remoteUrl?.startsWith("https") == true) {
+                URI(remoteUrl).host
             } else if (remoteUrl?.startsWith("git@") == true) {
-                return remoteUrl.substringAfter("git@").substringBefore(":")
+                remoteUrl.substringAfter("git@").substringBefore(":")
+            } else {
+                null
             }
-            return null
         }
 
         fun fromRemoteUrl(remoteUrl: String): GitHubInstance? {
