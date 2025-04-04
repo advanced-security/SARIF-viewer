@@ -10,6 +10,8 @@
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <actions>
+        <action id="RuleIDorDescriptionAction" icon="AllIcons.Actions.Diff" class="com.github.adrienpessu.sarifviewer.actions.RuleIDorDescriptionAction" text="Toggle Rule ID or Description">
+        </action>
         <action id="OpenLocalFileAction" icon="AllIcons.Actions.MenuOpen" class="com.github.adrienpessu.sarifviewer.actions.OpenLocalAction" text="Open local SARIF file">
         </action>
         <action id="RefreshAction" icon="AllIcons.Actions.ForceRefresh" class="com.github.adrienpessu.sarifviewer.actions.RefreshAction" text="Refresh from GitHub">

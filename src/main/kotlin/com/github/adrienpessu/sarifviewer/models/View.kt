@@ -5,7 +5,8 @@ data class View(
     val value: String = ""
 ) {
     override fun toString() = value
-
+    var ruleIdToggle: Boolean = true
+    
     companion object {
         val RULE = View("rules", "View by rules")
         val LOCATION = View("location", "View by location")
