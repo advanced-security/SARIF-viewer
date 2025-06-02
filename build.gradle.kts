@@ -24,7 +24,10 @@ repositories {
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
 //    implementation(libs.annotations)
-    implementation("com.contrastsecurity:java-sarif:2.11.2")
+    implementation("com.contrastsecurity:java-sarif:2.0")
+    constraints {
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+    }
     testImplementation("org.assertj:assertj-core:3.27.3")
 }
 
