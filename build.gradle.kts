@@ -25,6 +25,9 @@ repositories {
 dependencies {
 //    implementation(libs.annotations)
     implementation("com.contrastsecurity:java-sarif:2.0")
+    constraints {
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+    }
     testImplementation("org.assertj:assertj-core:3.27.3")
 }
 
