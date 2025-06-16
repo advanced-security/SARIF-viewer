@@ -26,7 +26,7 @@ dependencies {
 //    implementation(libs.annotations)
     implementation("com.contrastsecurity:java-sarif:2.0")
     constraints {
-        implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.19.1")
     }
     testImplementation("org.assertj:assertj-core:3.27.3")
 }
