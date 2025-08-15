@@ -28,7 +28,7 @@ dependencies {
     constraints {
         implementation("com.fasterxml.jackson.core:jackson-databind:2.19.2")
     }
-    testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.assertj:assertj-core:3.27.4")
 }
 
 // Set the JVM language level used to build the project. Use Java 11 for 2020.3+, and Java 17 for 2022.2+.
