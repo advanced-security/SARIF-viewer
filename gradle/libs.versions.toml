@@ -1,9 +1,9 @@
 [versions]
 # libraries
-annotations = "26.0.2"
+annotations = "26.0.2-1"
 
 # plugins
-kotlin = "2.2.0"
+kotlin = "2.2.10"
 changelog = "2.2.0"
 gradleIntelliJPlugin = "1.17.4"
 qodana = "0.1.13"
