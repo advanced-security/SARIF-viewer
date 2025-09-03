@@ -10,10 +10,12 @@
 SARIF viewer to view the results of static analysis tools in the IDE.
 The Sarif comes from GitHub Advanced Security (GHAS) or from the local file system.
 
-You must provide in the settings a personal access token (PAT) to access the GitHub API with as least the following scopes:
-- Pull request read
-- Code scanning read
-- Metadata read
+**Authentication:**
+- **GitHub.com**: Authentication is handled automatically through IntelliJ's built-in GitHub integration. Go to Settings > Version Control > GitHub to configure authentication.
+- **GitHub Enterprise Server**: You must provide a personal access token (PAT) to access the GitHub API with at least the following scopes:
+  - Pull request read
+  - Code scanning read
+  - Metadata read
 
 
 <!-- Plugin description end -->
@@ -27,14 +29,16 @@ You must provide in the settings a personal access token (PAT) to access the Git
 
 ## Configuration
 
-You must provide a personal access token (PAT) to access the GitHub API with as least the following scopes:
-- Pull request read
-- Code scanning read
-- Metadata read
+**For GitHub.com:**
+- No manual configuration required! Authentication is handled automatically through IntelliJ's built-in GitHub integration.
+- If you're not already authenticated, go to `Settings > Version Control > GitHub` to configure authentication.
 
-And add it to the plugin configuration via `Settings > Tools > Sarif Viewer`
-
-If you are using GHES, you must also provide the URL and the corresponding token of your GHES instance.
+**For GitHub Enterprise Server (GHES):**
+- You must provide a personal access token (PAT) to access the GitHub API with at least the following scopes:
+  - Pull request read
+  - Code scanning read
+  - Metadata read
+- Add your GHES hostname and PAT to the plugin configuration via `Settings > Tools > Sarif Viewer`
 
 <img alt="docs/settings.png" width="640" src="docs/settings.png"/>
 
