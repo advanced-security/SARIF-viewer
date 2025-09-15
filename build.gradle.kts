@@ -42,7 +42,7 @@ dependencies {
         // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
         val pluginList = properties("platformPlugins").map { it.split(',').map(String::trim).filter(String::isNotEmpty) }.get()
         if (pluginList.isNotEmpty()) {
-            plugins(pluginList)
+            bundledPlugins(pluginList)
         }
         
         pluginVerifier()
