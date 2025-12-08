@@ -27,9 +27,11 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.psi.search.FilenameIndex
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
@@ -40,6 +42,7 @@ import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
+import org.apache.commons.lang.mutable.Mutable
 import java.awt.Component
 import java.awt.Cursor
 import java.awt.Desktop
@@ -51,7 +54,6 @@ import java.io.File
 import java.net.URI
 import java.nio.charset.Charset
 import java.nio.file.Files
-import java.nio.file.Path
 import javax.swing.*
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
@@ -581,6 +583,17 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             UIManager.put("Tree.leafIcon", icon)
         }
 
+        private fun findPath(project: Project, path: String): VirtualFile? {
+            val fileName = path.substring(path.lastIndexOf('/')+1)
+            val pathOnly = path.substring(0, path.lastIndexOf('/')+1)
+            val decompiledFileName = fileName.replace(".scala",".java").replace(".kt",".java")
+            val collection : MutableCollection<VirtualFile> = FilenameIndex.getVirtualFilesByName(fileName, GlobalSearchScope.allScope(project))
+            // during decompilation original file ext is lost
+            collection.addAll(FilenameIndex.getVirtualFilesByName(decompiledFileName, GlobalSearchScope.allScope(project)))
+
+            return collection.find { virtualFile -> virtualFile.path.endsWith(path) or virtualFile.path.endsWith("${pathOnly}$decompiledFileName") }
+        }
+
         private fun openFile(
             project: Project,
             path: String,
@@ -591,15 +604,16 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             description: String = ""
         ) {
 
-            val editor: Editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-            val inlayModel = editor.inlayModel
+            val editor: Editor? = FileEditorManager.getInstance(project).selectedTextEditor
+            if (editor != null) {
+                val inlayModel = editor.inlayModel
 
-            inlayModel.getBlockElementsInRange(0, editor.document.textLength)
-                .filter { it.renderer is MyCustomInlayRenderer }
-                .forEach { it.dispose() }
+                inlayModel.getBlockElementsInRange(0, editor.document.textLength)
+                    .filter { it.renderer is MyCustomInlayRenderer }
+                    .forEach { it.dispose() }
+            }
+            val virtualFile : VirtualFile? = findPath(project,path)
 
-            val virtualFile =
-                VirtualFileManager.getInstance().findFileByNioPath(Path.of("${project.basePath}/$path"))
             if (virtualFile != null) {
                 FileEditorManager.getInstance(project).openTextEditor(
                     OpenFileDescriptor(
@@ -631,7 +645,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                     Notification(
                         "Sarif viewer",
                         "File not found",
-                        "Can't find the file ${project.basePath}/$path",
+                        "Can't find the file $path",
                         NotificationType.WARNING
                     ), project
                 )
