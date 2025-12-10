@@ -28,6 +28,7 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.psi.search.FilenameIndex
@@ -79,7 +80,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
 
     override fun shouldBeAvailable(project: Project) = true
 
-    class MyToolWindow(toolWindow: ToolWindow) {
+    class MyToolWindow(toolWindow: ToolWindow) : SimpleToolWindowPanel(false, true) {
 
         init {
             val actionManager = ActionManager.getInstance()
@@ -91,8 +92,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             val actions = ArrayList<AnAction>()
             actions.add(openLocalFileAction)
             actions.add(refreshAction)
-
             toolWindow.setTitleActions(actions)
+            //configureToolbar()
         }
 
         internal var github: GitHubInstance? = null
@@ -120,7 +121,18 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private var cacheSarif: SarifSchema210? = null
         private var currentLeaf: Leaf? = null
 
-        fun getContent() = JBPanel<JBPanel<*>>().apply {
+        public fun openFile(project : Project, file : File) {
+            val extractSarifFromFile = extractSarifFromFile(file)
+            treeBuilding(extractSarifFromFile)
+            localMode = true
+        }
+
+       override fun getContent(): JComponent? {
+            configureToolbar()
+            return this.component
+        }
+
+        private fun configureToolbar() {
 
             manageTreeIcons()
             buildSkeleton()
@@ -160,7 +172,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             })
         }
 
-        private fun JBPanel<JBPanel<*>>.loadDataAndUI(
+        private fun loadDataAndUI(
             repository: GitRepository,
             selectedCombo: BranchItemComboBox? = null
         ) {
@@ -262,7 +274,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             thisLogger().info(message)
         }
 
-        private fun JBPanel<JBPanel<*>>.buildSkeleton() {
+        private fun buildSkeleton() {
             steps.layout = BoxLayout(steps, BoxLayout.Y_AXIS)
             tableSteps.size = Dimension(steps.width, steps.height)
             steps.add(tableSteps)
