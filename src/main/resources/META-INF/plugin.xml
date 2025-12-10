@@ -6,6 +6,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
+    <depends>com.intellij.modules.json</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
@@ -32,7 +33,10 @@
         <notificationGroup id="SARIF viewer"
                            displayType="BALLOON"/>
         <codeVisionProvider language="kotlin" implementationClass="com.github.adrienpessu.sarifviewer.toolWindow.SarifCodeVisionProvider"/>
-
+        <fileType
+                name="SARIF"
+                implementationClass="com.github.adrienpessu.sarifviewer.SarifFileType"
+                extensions="sarif" fieldName="INSTANCE" language="JSON"/>
     </extensions>
 
 
