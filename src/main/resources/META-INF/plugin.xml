@@ -6,6 +6,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
+    <depends>com.intellij.modules.json</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
