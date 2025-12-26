@@ -444,7 +444,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             myList.addTreeSelectionListener(object : TreeSelectionListener {
                 override fun valueChanged(e: TreeSelectionEvent?) {
                     if (e != null && e.isAddedPath) {
-                        val leaves = map[e.path.parentPath.lastPathComponent.toString().split(" ").first()]
+                        val key = e.path.parentPath.lastPathComponent.toString()
+                        // path (count)
+                        val leaves1 = map[key.split(" ").first()]
+                        // bug desc (count)
+                        val leaves2 = map[key.substring(0, key.lastIndexOf(' '))]
+                        val leaves = (leaves1.orEmpty() + leaves2.orEmpty()).takeIf { it.isNotEmpty() }
+
                         if (!leaves.isNullOrEmpty()) {
                             currentLeaf = try {
                                 leaves.first { it.address == ((e.path.lastPathComponent as DefaultMutableTreeNode).userObject as Leaf).address }
