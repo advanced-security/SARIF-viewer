@@ -586,7 +586,16 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         private fun findPath(project: Project, path: String): VirtualFile? {
             val fileName = path.substring(path.lastIndexOf('/')+1)
             val pathOnly = path.substring(0, path.lastIndexOf('/')+1)
-            val decompiledFileName = fileName.replace(".scala",".java").replace(".kt",".java")
+
+            val lastDot = fileName.lastIndexOf('.')
+            val decompiledFileName = if (lastDot != -1) {
+                val nameWithoutExt = fileName.substring(0, lastDot)
+                val ext = fileName.substring(lastDot + 1)
+                when (ext) {
+                    "scala", "kt" -> "$nameWithoutExt.java"
+                    else -> fileName
+                }
+            } else fileName
             val collection : MutableCollection<VirtualFile> = FilenameIndex.getVirtualFilesByName(fileName, GlobalSearchScope.allScope(project))
             // during decompilation original file ext is lost
             collection.addAll(FilenameIndex.getVirtualFilesByName(decompiledFileName, GlobalSearchScope.allScope(project)))
