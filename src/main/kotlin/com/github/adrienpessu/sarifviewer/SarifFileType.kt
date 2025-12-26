@@ -1,0 +1,46 @@
+package com.github.adrienpessu.sarifviewer
+
+import com.github.adrienpessu.sarifviewer.toolWindow.SarifViewerWindowFactory
+import com.intellij.json.JsonFileType
+import com.intellij.openapi.fileTypes.INativeFileType
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.ui.IconManager
+import com.intellij.ui.components.JBPanel
+import javax.swing.Icon
+
+object SarifFileType :  JsonFileType(), INativeFileType {
+    override fun getName() = "SARIF"
+    override fun getDescription() = "SARIF file"
+    override fun getDefaultExtension() = "sarif"
+    override fun getIcon(): Icon = load("com.github.adrienpessu.sarifviewer/sarif.svg", -2129886975, 0);
+
+
+    override fun openFileInAssociatedApplication(project: Project?, file: VirtualFile): Boolean  {
+        if (project == null) return false
+
+        val toolWindow = ToolWindowManager
+            .getInstance(project)
+            .getToolWindow("Sarif viewer")
+
+
+        toolWindow?.contentManager?.selectedContent?.component
+            ?.let { component ->
+                if (component is SarifViewerWindowFactory.MyToolWindow) {
+                    component.openFile(project,file.toNioPath().toFile())
+                }
+            }
+
+        toolWindow?.show() // opens and focuses the tool window
+        return true
+    }
+
+    private fun load(path: String, cacheKey: Int, flags: Int): Icon {
+        return IconManager.getInstance()
+            .loadRasterizedIcon(path, SarifFileType.javaClass.getClassLoader(), cacheKey, flags)
+    }
+
+    override fun useNativeIcon(): Boolean = false
+
+}
