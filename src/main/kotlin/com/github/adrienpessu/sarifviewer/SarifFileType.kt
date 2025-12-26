@@ -37,8 +37,7 @@ object SarifFileType :  JsonFileType(), INativeFileType {
     }
 
     private fun load(path: String, cacheKey: Int, flags: Int): Icon {
-        return IconManager.getInstance()
-            .loadRasterizedIcon(path, SarifFileType.javaClass.getClassLoader(), cacheKey, flags)
+        return IconManager.getInstance().getIcon(path, SarifFileType::class.java)
     }
 
     override fun useNativeIcon(): Boolean = false
