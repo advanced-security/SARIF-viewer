@@ -12,6 +12,7 @@ import com.github.adrienpessu.sarifviewer.models.BranchItemComboBox
 import com.github.adrienpessu.sarifviewer.models.Leaf
 import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.services.SarifService
+import com.github.adrienpessu.sarifviewer.services.GitHubAuthenticationService
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationGroupManager
@@ -191,8 +192,16 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             }
 
             if (github == GitHubInstance.DOT_COM) {
-                github!!.token = SettingsState.instance.pluginState.pat
+                // For GitHub.com, use the new authentication service
+                val authService = project.getService(GitHubAuthenticationService::class.java)
+                val token = authService.getAuthenticatedToken(github!!)
+                if (token == null) {
+                    displayError("GitHub authentication required. Please ensure you're logged into GitHub in IntelliJ IDEA.")
+                    return
+                }
+                github!!.token = token
             } else if (github!!.hostname == SettingsState.instance.pluginState.ghesHostname) {
+                // For GHES instances, continue using PAT from settings
                 github!!.token = SettingsState.instance.pluginState.ghesPat
             }
 
@@ -206,8 +215,12 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 sarifGitHubRef = "refs/heads/${currentBranch?.name ?: "refs/heads/main"}"
             }
 
-            if (github!!.token == SettingsState().pluginState.pat || github!!.token.isEmpty()) {
-                displayError("No GitHub PAT found for ${github!!.hostname}")
+            if (github!!.token.isEmpty()) {
+                if (github!!.useBuiltInAuth) {
+                    displayError("GitHub authentication required for ${github!!.hostname}. Please ensure you're logged into GitHub in IntelliJ IDEA.")
+                } else {
+                    displayError("No GitHub PAT found for ${github!!.hostname}")
+                }
                 return
             }
 
