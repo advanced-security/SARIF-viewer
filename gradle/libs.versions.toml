@@ -1,20 +1,26 @@
 [versions]
 # libraries
-annotations = "26.0.2-1"
+annotations = "24.1.0"
+jackson = "2.17.2"
+flexmark = "0.64.8"
 
 # plugins
-changelog = "2.5.0"
-kotlin = "2.2.21"
-gradleIntelliJPlugin = "1.17.4"
-qodana = "0.1.13"
-kover = "0.9.3"
+dokka = "1.9.20"
+kotlin = "2.2.0"
+changelog = "2.2.1"
+gradleIntelliJPluginVersion = "2.10.4"
+kover = "0.7.3"
+sentry = "4.11.0"
 
 [libraries]
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
+jackson = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
+flexmark = { group = "com.vladsch.flexmark", name = "flexmark-all", version.ref = "flexmark" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
-gradleIntelliJPlugin = { id = "org.jetbrains.intellij", version.ref = "gradleIntelliJPlugin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+gradleIntelliJPlugin = { id = "org.jetbrains.intellij.platform", version.ref = "gradleIntelliJPluginVersion" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
-qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }
+sentry = { id = "io.sentry.jvm.gradle", version.ref = "sentry" }
