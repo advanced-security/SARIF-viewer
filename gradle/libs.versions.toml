@@ -5,12 +5,9 @@ jackson = "2.17.2"
 flexmark = "0.64.8"
 
 # plugins
-dokka = "1.9.20"
-kotlin = "2.2.0"
+kotlin = "2.2.20"
 changelog = "2.2.1"
 gradleIntelliJPluginVersion = "2.10.4"
-kover = "0.7.3"
-sentry = "4.11.0"
 
 [libraries]
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
@@ -19,8 +16,5 @@ flexmark = { group = "com.vladsch.flexmark", name = "flexmark-all", version.ref 
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
-dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 gradleIntelliJPlugin = { id = "org.jetbrains.intellij.platform", version.ref = "gradleIntelliJPluginVersion" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
-sentry = { id = "io.sentry.jvm.gradle", version.ref = "sentry" }
