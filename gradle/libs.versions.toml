@@ -8,7 +8,7 @@ flexmark = "0.64.8"
 dokka = "1.9.20"
 kotlin = "2.2.0"
 changelog = "2.2.1"
-gradleIntelliJPluginVersion = "2.10.4"
+gradleIntelliJPluginVersion = "2.10.5"
 kover = "0.7.3"
 sentry = "4.11.0"
 
