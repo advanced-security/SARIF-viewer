@@ -6,7 +6,7 @@ flexmark = "0.64.8"
 
 # plugins
 kotlin = "2.2.20"
-changelog = "2.2.1"
+changelog = "2.5.0"
 gradleIntelliJPluginVersion = "2.10.5"
 
 [libraries]
