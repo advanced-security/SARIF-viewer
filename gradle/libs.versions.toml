@@ -1,7 +1,7 @@
 [versions]
 # libraries
 annotations = "24.1.0"
-jackson = "2.20.1"
+jackson = "2.21.0"
 flexmark = "0.64.8"
 
 # plugins
