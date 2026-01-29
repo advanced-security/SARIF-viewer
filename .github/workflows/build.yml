@@ -45,7 +45,7 @@ jobs:
         id: properties
         shell: bash
         run: |
-          VERSION="$(grep "^pluginVersion\s*=" gradle.properties | cut -f2- -d '=' | tr -d ' ')"
+          VERSION="$(grep "^pluginVersion[ ]*=" gradle.properties | cut -f2- -d '=' | tr -d ' ')"
           CHANGELOG="$(./gradlew getChangelog --unreleased --no-header --console=plain -q)"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
