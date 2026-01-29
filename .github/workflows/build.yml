@@ -75,7 +75,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.artifact.outputs.filename }}
+          name: 'SARIF-viewer-provider'
           path: ./build/distributions/content/*/*
 
   verify:
