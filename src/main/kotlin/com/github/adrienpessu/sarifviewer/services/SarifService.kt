@@ -10,25 +10,30 @@ import com.github.adrienpessu.sarifviewer.models.Root
 import com.github.adrienpessu.sarifviewer.models.View
 import com.github.adrienpessu.sarifviewer.utils.GitHubInstance
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.project.Project
 import com.intellij.util.alsoIfNull
 import java.net.HttpURLConnection
 import java.net.URI
 
 
 @Service(Service.Level.PROJECT)
-class SarifService {
+class SarifService(private val project: Project) {
 
     fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, branchName: String): List<SarifSchema210?> {
-        val analysisFromGitHub = getAnalysisFromGitHub(github, repositoryFullName, branchName)
+        val authService = project.getService(GitHubAuthenticationService::class.java)
+        val token = authService.getAuthenticatedToken(github)
+            ?: throw SarifViewerException.INVALID_PAT
+
+        val analysisFromGitHub = getAnalysisFromGitHub(github, repositoryFullName, branchName, token)
         val objectMapper = ObjectMapper()
         val analysis: List<Root> = objectMapper.readValue(analysisFromGitHub)
 
         val ids = analysis.filter { it.commit_sha == analysis.first().commit_sha }.map { it.id }
 
         return ids.map { id ->
-            val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id)
+            val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id, token)
             val sarif: SarifSchema210 = objectMapper.readValue(sarifFromGitHub)
-            sarif.alsoIfNull { SarifSchema210()  }
+            sarif.alsoIfNull { SarifSchema210() }
         }
     }
 
@@ -116,6 +121,10 @@ class SarifService {
     }
 
     fun getPullRequests(github: GitHubInstance, repositoryFullName: String, branchName: String = "main"): List<*>? {
+        val authService = project.getService(GitHubAuthenticationService::class.java)
+        val token = authService.getAuthenticatedToken(github)
+            ?: throw SarifViewerException.INVALID_PAT
+
         val head = "${repositoryFullName.split("/")[0]}:$branchName"
         val connection = URI("${github.apiBase}/repos/$repositoryFullName/pulls?state=open&head=$head")
             .toURL()
@@ -128,7 +137,7 @@ class SarifService {
 
             setRequestProperty("Accept", "application/vnd.github.v3+json")
             setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            setRequestProperty("Authorization", "Bearer ${github.token}")
+            setRequestProperty("Authorization", "Bearer $token")
         }
 
         handleExceptions(connection)
@@ -142,7 +151,8 @@ class SarifService {
     private fun getAnalysisFromGitHub(
         github: GitHubInstance,
         repositoryFullName: String,
-        branchName: String = "main"
+        branchName: String = "main",
+        token: String
     ): String {
 
         val s = "${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses?ref=$branchName"
@@ -157,7 +167,7 @@ class SarifService {
 
             setRequestProperty("Accept", "application/vnd.github.v3+json")
             setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            setRequestProperty("Authorization", "Bearer ${github.token}")
+            setRequestProperty("Authorization", "Bearer $token")
         }
 
         handleExceptions(connection)
@@ -189,7 +199,7 @@ class SarifService {
         }
     }
 
-    private fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, analysisId: Int): String {
+    private fun getSarifFromGitHub(github: GitHubInstance, repositoryFullName: String, analysisId: Int, token: String): String {
         val connection = URI("${github.apiBase}/repos/$repositoryFullName/code-scanning/analyses/$analysisId")
             .toURL()
             .openConnection() as HttpURLConnection
@@ -201,7 +211,7 @@ class SarifService {
 
             setRequestProperty("Accept", "application/sarif+json")
             setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            setRequestProperty("Authorization", "Bearer ${github.token}")
+            setRequestProperty("Authorization", "Bearer $token")
         }
 
         handleExceptions(connection)

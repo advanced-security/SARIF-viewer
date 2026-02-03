@@ -6,6 +6,9 @@ import java.net.URI
 data class GitHubInstance(val hostname: String, val apiBase: String = "https://$hostname/api/v3") {
     // Keep this out of the constructor so that it doesn't accidentally end up in a toString() output
     var token: String = ""
+    
+    // Flag to indicate if this instance should use IntelliJ's built-in GitHub authentication
+    val useBuiltInAuth: Boolean = hostname == "github.com"
 
     fun extractRepoNwo(remoteUrl: String?): String? {
         if (remoteUrl?.startsWith("https") == true) {

@@ -24,7 +24,6 @@ class Settings : Configurable, Configurable.NoScroll, Disposable {
 
     override fun createComponent(): JComponent {
         mySettingsComponent = SettingComponent()
-        mySettingsComponent!!.setGhTokenText(SettingsState.instance.state.pat)
         mySettingsComponent!!.setGhesHostnameText(SettingsState.instance.state.ghesHostname)
         mySettingsComponent!!.setGhesTokenText(SettingsState.instance.state.ghesPat)
         return mySettingsComponent!!.getPanel()
@@ -32,14 +31,13 @@ class Settings : Configurable, Configurable.NoScroll, Disposable {
 
     override fun isModified(): Boolean =
             listOf(
-                mySettingsComponent!!.getGhTokenText() != SettingsState.instance.state.pat,
                 mySettingsComponent!!.getGhesHostnameText() != SettingsState.instance.state.ghesHostname,
                 mySettingsComponent!!.getGhesTokenText() != SettingsState.instance.state.ghesPat,
             ).any()
 
     override fun apply() {
         val settings: SettingsState = SettingsState.instance
-        settings.state.pat = mySettingsComponent!!.getGhTokenText()
+        // Keep the PAT for backward compatibility but don't require user input for GitHub.com
         settings.state.ghesHostname = mySettingsComponent!!.getGhesHostnameText()
         settings.state.ghesPat = mySettingsComponent!!.getGhesTokenText()
 
@@ -48,7 +46,6 @@ class Settings : Configurable, Configurable.NoScroll, Disposable {
     }
 
     override fun reset() {
-        mySettingsComponent?.setGhTokenText(SettingsState.instance.state.pat)
         mySettingsComponent?.setGhesHostnameText(SettingsState.instance.state.ghesHostname)
         mySettingsComponent?.setGhesTokenText(SettingsState.instance.state.ghesPat)
     }

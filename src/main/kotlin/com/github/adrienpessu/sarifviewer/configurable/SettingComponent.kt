@@ -14,23 +14,20 @@ import javax.swing.JToggleButton
 
 class SettingComponent {
     private var myMainPanel: JPanel? = null
-    private var ghTokenTextField: JTextField =JBTextField()
-    private var ghTokenPasswordField: JTextField = JBPasswordField()
     private val ghesHostnameText = JBTextField()
     private var ghesTokenTextField: JTextField  = JBTextField()
     private var ghesTokenPasswordField: JTextField  = JBPasswordField()
-    private val toggleButton = JToggleButton("Show/Hide PAT")
+    private val toggleButton = JToggleButton("Show/Hide GHES PAT")
 
-    private var isGhTokenVisible: Boolean = false
+    private var isGhesTokenVisible: Boolean = false
 
     init {
 
-        ghTokenTextField.isVisible = isGhTokenVisible
-        ghesTokenTextField.isVisible = isGhTokenVisible
+        ghesTokenTextField.isVisible = isGhesTokenVisible
         myMainPanel = FormBuilder.createFormBuilder()
-            .addComponent(JBLabel("GitHub.com PAT "))
-            .addComponent(ghTokenTextField)
-            .addComponent(ghTokenPasswordField)
+            .addComponent(JBLabel("GitHub.com Authentication"))
+            .addComponent(JBLabel("Authentication is handled automatically through IntelliJ's GitHub integration."))
+            .addComponent(JBLabel("Go to Settings > Version Control > GitHub to configure authentication."))
             .addSeparator(48)
             .addComponent(JBLabel("GHES Hostname "))
             .addComponent(ghesHostnameText)
@@ -43,20 +40,12 @@ class SettingComponent {
             .panel
 
         toggleButton.addActionListener {
-            isGhTokenVisible = !isGhTokenVisible
-            if (isGhTokenVisible) {
-                ghTokenTextField.text = ghTokenPasswordField.text
-                ghTokenTextField.isVisible = true
-                ghTokenPasswordField.isVisible = false
-
+            isGhesTokenVisible = !isGhesTokenVisible
+            if (isGhesTokenVisible) {
                 ghesTokenTextField.text = ghesTokenPasswordField.text
                 ghesTokenTextField.isVisible = true
                 ghesTokenPasswordField.isVisible = false
             } else {
-                ghTokenPasswordField.text = ghTokenTextField.text
-                ghTokenTextField.isVisible = false
-                ghTokenPasswordField.isVisible = true
-
                 ghesTokenPasswordField.text = ghesTokenTextField.text
                 ghesTokenTextField.isVisible = false
                 ghesTokenPasswordField.isVisible = true
@@ -73,23 +62,19 @@ class SettingComponent {
 
     fun getPreferredFocusedComponent(): JComponent {
         return if (toggleButton.isSelected) {
-            ghTokenTextField
+            ghesTokenTextField
         } else {
-            ghTokenPasswordField
+            ghesTokenPasswordField
         }
     }
 
     fun getGhTokenText(): String {
-        return if (isGhTokenVisible) {
-            ghTokenTextField.text
-        } else {
-            ghTokenPasswordField.text
-        }
+        // Return empty string for GitHub.com PAT since it's no longer used
+        return ""
     }
 
     fun setGhTokenText(newText: String) {
-        ghTokenTextField.text = newText
-        ghTokenPasswordField.text = newText
+        // No-op since GitHub.com PAT is no longer used
     }
 
     fun getGhesHostnameText(): String {
@@ -97,7 +82,7 @@ class SettingComponent {
     }
 
     fun getGhesTokenText(): String {
-        return if (isGhTokenVisible) {
+        return if (isGhesTokenVisible) {
             ghesTokenTextField.text
         } else {
             ghesTokenPasswordField.text
