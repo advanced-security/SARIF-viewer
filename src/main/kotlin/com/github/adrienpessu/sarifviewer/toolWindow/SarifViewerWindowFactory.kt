@@ -5,6 +5,7 @@ import com.contrastsecurity.sarif.SarifSchema210
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.adrienpessu.sarifviewer.actions.OpenLocalAction
 import com.github.adrienpessu.sarifviewer.actions.RefreshAction
+import com.github.adrienpessu.sarifviewer.actions.RuleIDorDescriptionAction
 import com.github.adrienpessu.sarifviewer.configurable.Settings
 import com.github.adrienpessu.sarifviewer.configurable.SettingsState
 import com.github.adrienpessu.sarifviewer.exception.SarifViewerException
@@ -86,11 +87,14 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         init {
             val actionManager = ActionManager.getInstance()
 
+            val toggleRuleIdOrDescriptionAction = actionManager.getAction("RuleIDorDescriptionAction")
+            (toggleRuleIdOrDescriptionAction as RuleIDorDescriptionAction).myToolWindow = this
             val openLocalFileAction = actionManager.getAction("OpenLocalFileAction")
             (openLocalFileAction as OpenLocalAction).myToolWindow = this
             val refreshAction = actionManager.getAction("RefreshAction")
             (refreshAction as RefreshAction).myToolWindow = this
             val actions = ArrayList<AnAction>()
+            actions.add(toggleRuleIdOrDescriptionAction)
             actions.add(openLocalFileAction)
             actions.add(refreshAction)
             toolWindow.setTitleActions(actions)
@@ -102,6 +106,8 @@ class SarifViewerWindowFactory : ToolWindowFactory {
         internal var currentBranch: GitLocalBranch? = null
 
         private var localMode = false
+        private lateinit var extractSarifFromFile: HashMap<String, MutableList<Leaf>>
+        private lateinit var selectedFile: File
         private val service = toolWindow.project.service<SarifService>()
         private val project = toolWindow.project
         private var main = ScrollPaneFactory.createScrollPane()
@@ -395,6 +401,13 @@ class SarifViewerWindowFactory : ToolWindowFactory {
             treeBuilding(map)
         }
 
+        fun toggleRuleIdOrDescription() {
+            if (localMode) {
+                currentView.ruleIdToggle = !currentView.ruleIdToggle
+                extractSarifFromFile = extractSarifFromFile(selectedFile)
+                treeBuilding(extractSarifFromFile)
+            }
+        }
         fun openLocalFile() {
             val fileChooser = JFileChooser()
             fileChooser.fileFilter = FileNameExtensionFilter("SARIF files", "sarif")
@@ -402,7 +415,7 @@ class SarifViewerWindowFactory : ToolWindowFactory {
                 val returnValue = fileChooser.showOpenDialog(null)
                 if (returnValue == JFileChooser.APPROVE_OPTION) {
                     val selectedFile: File = fileChooser.selectedFile
-                    val extractSarifFromFile = extractSarifFromFile(selectedFile)
+                    extractSarifFromFile = extractSarifFromFile(selectedFile)
                     treeBuilding(extractSarifFromFile)
                     localMode = true
                 }
