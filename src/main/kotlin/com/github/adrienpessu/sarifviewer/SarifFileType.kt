@@ -3,6 +3,7 @@ package com.github.adrienpessu.sarifviewer
 import com.github.adrienpessu.sarifviewer.toolWindow.SarifViewerWindowFactory
 import com.intellij.json.JsonFileType
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.IconManager
@@ -36,7 +37,7 @@ object SarifFileType : JsonFileType() {
     }
 
     private fun load(path: String, cacheKey: Int, flags: Int): Icon {
-        return IconManager.getInstance().getIcon(path, SarifFileType::class.java)
+        return IconLoader.getIcon(path, SarifFileType::class.java.classLoader)
     }
 
     fun useNativeIcon(): Boolean = false
