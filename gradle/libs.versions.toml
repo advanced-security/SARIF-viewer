@@ -1,6 +1,6 @@
 [versions]
 # libraries
-annotations = "24.1.0"
+annotations = "26.1.0"
 jackson = "2.21.1"
 flexmark = "0.64.8"
 
