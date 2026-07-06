@@ -56,7 +56,7 @@ class SarifService {
                     sarif.runs.forEach { run ->
                         run?.results?.forEach { result ->
                             val element = leaf(result)
-                            val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+                            val key = result.rule?.id ?: result.correlationGuid ?: result.message.text
                             if (map.containsKey(key)) {
                                 map[key]?.add(element)
                             } else {
