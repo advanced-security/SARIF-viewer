@@ -11,8 +11,12 @@ import java.awt.Rectangle
 class MyCustomInlayRenderer(private val text: String) : EditorCustomElementRenderer {
 
     private val myFont = Font("Courrier new", Font.ITALIC, 12)
-    override fun paint(inlay: Inlay<*>, g: Graphics, targetRegion: Rectangle, textAttributes: TextAttributes) {
 
+    override fun paint(inlay: Inlay<*>, g: Graphics, targetRegion: Rectangle, textAttributes: TextAttributes?) {
+        paintInternal(inlay, g, targetRegion)
+    }
+
+    private fun paintInternal(inlay: Inlay<*>, g: Graphics, targetRegion: Rectangle) {
         (inlay.editor as EditorImpl).apply {
             g.font = myFont
             g.color = colorsScheme.defaultForeground
