@@ -29,6 +29,7 @@ dependencies {
         // CVE-2026-45292 / GHSA-rcgg-9c38-7xpx: unbounded memory allocation in W3C Baggage Propagation
         implementation("io.opentelemetry:opentelemetry-api:1.64.0")
         add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpg-jdk18on:1.84")
+        add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpkix-jdk18on:1.84")
     }
     testImplementation("org.assertj:assertj-core:3.27.7")
 
