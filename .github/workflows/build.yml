@@ -28,7 +28,7 @@ jobs:
           sudo rm -rf /usr/local/.ghcup
 
       - name: Fetch Sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -37,7 +37,7 @@ jobs:
           java-version: 17
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: true
 
@@ -73,7 +73,7 @@ jobs:
           echo "filename=${FILENAME:0:-4}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: 'SARIF-viewer-provider'
           path: ./build/distributions/content/*/*
@@ -109,7 +109,7 @@ jobs:
           sudo apt-get clean || echo "::warning::The command [sudo apt-get clean] failed to complete successfully. Proceeding..."
 
       - name: Fetch Sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -118,12 +118,12 @@ jobs:
           java-version: 17
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: true
 
       - name: Setup Plugin Verifier IDEs Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ needs.build.outputs.pluginVerifierHomeDir }}/ides
           key: plugin-verifier-${{ hashFiles('build/printProductsReleases.txt') }}
@@ -133,7 +133,7 @@ jobs:
 
       - name: Collect Plugin Verifier Result
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pluginVerifier-result
           path: ${{ github.workspace }}/build/reports/pluginVerifier
