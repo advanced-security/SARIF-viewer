@@ -56,7 +56,11 @@ class SarifService {
                     sarif.runs.forEach { run ->
                         run?.results?.forEach { result ->
                             val element = leaf(result)
-                            val key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+                            var key = "init"
+                            if (view.ruleIdToggle)
+                                key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.message.text
+                            else
+                                 key = result.rule?.id ?: result.correlationGuid?.toString() ?: result.ruleId
                             if (map.containsKey(key)) {
                                 map[key]?.add(element)
                             } else {
@@ -74,6 +78,8 @@ class SarifService {
                 try {
                     sarif.runs.forEach { run ->
                         run?.results?.forEach { result ->
+                            if (view.ruleIdToggle)
+                                result.message.text = result.ruleId
                             val element = leaf(result)
                             val key = result.locations[0].physicalLocation.artifactLocation.uri
                             if (map.containsKey(key)) {
