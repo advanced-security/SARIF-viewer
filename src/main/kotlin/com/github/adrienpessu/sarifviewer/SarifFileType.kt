@@ -14,7 +14,7 @@ object SarifFileType : JsonFileType() {
     override fun getName() = "SARIF"
     override fun getDescription() = "SARIF file"
     override fun getDefaultExtension() = "sarif"
-    override fun getIcon(): Icon = load("com.github.adrienpessu.sarifviewer/sarif.svg", -2129886975, 0);
+    override fun getIcon(): Icon = load("com.github.adrienpessu.sarifviewer/sarif.svg")
 
 
     fun openFileInAssociatedApplication(project: Project?, file: VirtualFile): Boolean  {
@@ -36,7 +36,7 @@ object SarifFileType : JsonFileType() {
         return true
     }
 
-    private fun load(path: String, cacheKey: Int, flags: Int): Icon {
+    private fun load(path: String): Icon {
         return IconLoader.getIcon(path, SarifFileType::class.java.classLoader)
     }
 
