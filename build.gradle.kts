@@ -28,8 +28,8 @@ dependencies {
         implementation("com.fasterxml.jackson.core:jackson-databind:2.22.2")
         // CVE-2026-45292 / GHSA-rcgg-9c38-7xpx: unbounded memory allocation in W3C Baggage Propagation
         implementation("io.opentelemetry:opentelemetry-api:1.65.0")
-        add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpg-jdk18on:1.84")
-        add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpkix-jdk18on:1.84")
+        implementation("org.bouncycastle:bcpg-jdk18on:1.84")
+        implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     }
     testImplementation("org.assertj:assertj-core:3.27.7")
 
