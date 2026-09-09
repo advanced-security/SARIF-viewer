@@ -28,7 +28,7 @@ class SarifService {
         return ids.map { id ->
             val sarifFromGitHub = getSarifFromGitHub(github, repositoryFullName, id)
             val sarif: SarifSchema210 = objectMapper.readValue(sarifFromGitHub)
-            sarif.alsoIfNull { SarifSchema210()  }
+            sarif ?: SarifSchema210()
         }
     }
 
