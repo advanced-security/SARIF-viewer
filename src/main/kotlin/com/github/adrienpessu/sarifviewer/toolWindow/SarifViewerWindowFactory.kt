@@ -44,7 +44,6 @@ import git4idea.GitLocalBranch
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
-import org.apache.commons.lang.mutable.Mutable
 import java.awt.Component
 import java.awt.Cursor
 import java.awt.Desktop
