@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 fun properties(key: String) = providers.gradleProperty(key)
 fun environment(key: String) = providers.environmentVariable(key)
@@ -25,11 +26,11 @@ repositories {
 dependencies {
     implementation("com.contrastsecurity:java-sarif:2.0")
     constraints {
-        implementation("com.fasterxml.jackson.core:jackson-databind:2.22.2")
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.21.5")
         // CVE-2026-45292 / GHSA-rcgg-9c38-7xpx: unbounded memory allocation in W3C Baggage Propagation
         implementation("io.opentelemetry:opentelemetry-api:1.65.0")
-        add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpg-jdk18on:1.84")
-        add("kotlinBouncyCastleConfiguration", "org.bouncycastle:bcpkix-jdk18on:1.84")
+        implementation("org.bouncycastle:bcpg-jdk18on:1.84")
+        implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     }
     testImplementation("org.assertj:assertj-core:3.27.7")
 
@@ -111,6 +112,8 @@ intellijPlatform {
         ides {
             recommended()
         }
+        ignoredProblemsFile = file("ignoredProblems.txt")
+        failureLevel = listOf(FailureLevel.COMPATIBILITY_PROBLEMS, FailureLevel.OVERRIDE_ONLY_API_USAGES)
     }
 }
 
