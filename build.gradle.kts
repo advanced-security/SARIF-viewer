@@ -26,7 +26,7 @@ repositories {
 dependencies {
     implementation("com.contrastsecurity:java-sarif:2.0")
     constraints {
-        implementation("com.fasterxml.jackson.core:jackson-databind:2.22.2")
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.21.4")
         // CVE-2026-45292 / GHSA-rcgg-9c38-7xpx: unbounded memory allocation in W3C Baggage Propagation
         implementation("io.opentelemetry:opentelemetry-api:1.65.0")
         implementation("org.bouncycastle:bcpg-jdk18on:1.84")
