@@ -4,7 +4,7 @@ annotations = "26.1.0"
 jackson = "2.21.4"
 flexmark = "0.64.8"
 
-# plugins
+# plugins - 
 kotlin = "2.4.20"
 changelog = "2.5.0"
 gradleIntelliJPluginVersion = "2.18.1"
